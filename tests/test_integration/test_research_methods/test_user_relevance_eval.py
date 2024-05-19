@@ -3,7 +3,7 @@ import pandas as pd
 from research.user_based.user_relevance_eval import create_relevance_stats_df
 from src.recommender_core.data_handling.data_queries import RecommenderMethods
 from src.recommender_core.recommender_algorithms.user_based_algorithms.user_relevance_classifier.user_evaluation_results import \
-    get_user_evaluation_results_dataframe
+    get_thumbs_evaluations
 
 
 def test_get_user_evaluation_results_dataframe():
@@ -14,7 +14,7 @@ def test_get_user_evaluation_results_dataframe():
 
 
 def test_create_relevance_stats_df():
-    sections = get_user_evaluation_results_dataframe()['method_section'].unique().tolist()
+    sections = get_thumbs_evaluations()['method_section'].unique().tolist()
     results_df = create_relevance_stats_df(sections)  # load_texts posts to dataframe
     assert isinstance(results_df, pd.DataFrame)
     assert len(results_df.index) > 0

@@ -46,7 +46,7 @@ SEED = 2021
 
 
 def get_results_single_coeff_user_as_query():
-    evaluation_results_df = evaluation_results.get_admin_evaluation_results_dataframe()
+    evaluation_results_df = evaluation_results.get_playground_evaluations()
     print("evaluation_results_df:")
     print(evaluation_results_df)
     dict_of_jsons = {}
@@ -81,7 +81,7 @@ def get_results_single_coeff_user_as_query():
 
 
 def get_results_single_coeff_searched_doc_as_query():
-    evaluation_results_df = evaluation_results.get_admin_evaluation_results_dataframe()
+    evaluation_results_df = evaluation_results.get_playground_evaluations()
     print("evaluation_results_df:")
     print(evaluation_results_df)
     dict_of_jsons = {}

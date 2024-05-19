@@ -14,7 +14,7 @@ from src.recommender_core.recommender_algorithms.user_based_algorithms.user_rele
     user_evaluation_results
 from src.recommender_core.data_handling.data_queries import RecommenderMethods
 from src.recommender_core.recommender_algorithms.user_based_algorithms.user_relevance_classifier.user_evaluation_results import \
-    get_admin_evaluation_results_dataframe
+    get_playground_evaluations
 
 warnings.filterwarnings('always')  # "error", "ignore", "always", "default", "module" or "once"
 
@@ -69,7 +69,7 @@ def try_statistics():
     print(top_k_accuracy_score(y_true, scores, k=2))
 
 def model_ap(investigate_by='model_name'):
-    evaluation_results_df = evaluation_results.get_admin_evaluation_results_dataframe()
+    evaluation_results_df = evaluation_results.get_playground_evaluations()
     print(evaluation_results_df.head(10).to_string())
     dict_of_model_stats = {}
     list_of_models = []
@@ -95,7 +95,7 @@ def model_ap(investigate_by='model_name'):
 
 
 def model_variant_ap(variant=None):
-    evaluation_results_df = evaluation_results.get_admin_evaluation_results_dataframe()
+    evaluation_results_df = evaluation_results.get_playground_evaluations()
     print(evaluation_results_df.head(10).to_string())
 
     if variant is not None:
@@ -141,7 +141,7 @@ def save_precision_recall_curve(precision, recall):
 def models_complete_statistics(investigate_by, k=5, save_results_for_every_item=False, crop_by_date=False,
                                last_n_by_date=None, save_results_for_model=False):
     global list_of_slugs, list_of_created_at
-    evaluation_results_df = get_admin_evaluation_results_dataframe()
+    evaluation_results_df = get_playground_evaluations()
 
     if crop_by_date:
         if last_n_by_date is not None:
@@ -402,7 +402,7 @@ def plot_confusion_matrix(cm, title):
 
 def show_confusion_matrix():
     print("Please be awware that confusion matrix is only ")
-    evaluation_results_df = evaluation_results.get_admin_evaluation_results_dataframe()
+    evaluation_results_df = evaluation_results.get_playground_evaluations()
     print(evaluation_results_df.head(10).to_string())
     dict_of_model_stats = {}
     list_of_models = []

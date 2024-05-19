@@ -7,6 +7,7 @@ from pathlib import Path
 
 import psycopg2
 import pandas as pd
+
 import redis
 from pandas.io.sql import DatabaseError
 from typing import List

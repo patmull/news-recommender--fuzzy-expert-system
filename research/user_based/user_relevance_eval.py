@@ -9,7 +9,7 @@ from sklearn.metrics import precision_score, balanced_accuracy_score, dcg_score,
 from src.constants.naming import Naming
 from src.recommender_core.data_handling.data_manipulation import get_redis_connection
 from src.recommender_core.recommender_algorithms.user_based_algorithms.user_relevance_classifier.user_evaluation_results import \
-    get_user_evaluation_results_dataframe
+    get_thumbs_evaluations
 
 
 for handler in logging.root.handlers[:]:
@@ -39,7 +39,7 @@ def create_relevance_stats_df(sections):
     sections_list = []
 
     for section in sections:
-        user_eval_df = get_user_evaluation_results_dataframe()
+        user_eval_df = get_thumbs_evaluations()
         user_eval_df = user_eval_df.loc[user_eval_df['method_section'] == section]
         true_relevance = user_eval_df['value'].tolist()
 
@@ -88,7 +88,7 @@ def user_relevance_asessment(save_to_redis=True):
     @return:
     """
 
-    sections = get_user_evaluation_results_dataframe()['method_section'].unique().tolist()
+    sections = get_thumbs_evaluations()['method_section'].unique().tolist()
 
     df = create_relevance_stats_df(sections)
 
