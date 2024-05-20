@@ -232,7 +232,6 @@ class DatabaseMethods(object):
         else:
             raise ValueError("Cursor is set to None. Cannot continue with next operation.")
         return rs
-
     def get_posts_dataframe_from_sql(self) -> object:
         """
         Slower, does load the database with query, but supports BERT vectors loading.

@@ -1,4 +1,12 @@
-from news_recommender_core_1_1.evaluation.utils.cleaning_results import clean_results_playground, clean_results_thumbs
+import json
+from pathlib import Path
 
-print(clean_results_playground().head(10).to_string())
-print(clean_results_thumbs().head(10).to_string())
+from src.news_recommender_core_1_1.database import load_post, load_post_category, load_post_ratings, load_user_thumbs
+from src.news_recommender_core_1_1.evaluation.utils.cleaning_results import save_clean_results_playground, \
+    add_post_features
+
+save_clean_results_playground()
+add_post_features()
+
+# save_clean_results_playground()
+# add_post_features()
