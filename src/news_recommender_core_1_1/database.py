@@ -1,6 +1,8 @@
 import os
 
+import pandas as pd
 import sqlalchemy.engine
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import create_engine, inspect, text
@@ -119,6 +121,15 @@ def load_post_ratings(post):
     return ratings
 
 
+def load_posts_df():
+    posts_query = session.query(Post)
+    sql_posts_query = posts_query.statement.compile(dialect=postgresql.dialect())
+    print("sql_posts_query:")
+    print(sql_posts_query)
+    articles_df = pd.DataFrame(engine.connect().execute(text(str(sql_posts_query))))
+    return articles_df
+
+
 def load_user_thumbs():
     ratings = []
 
@@ -129,6 +140,7 @@ def load_user_thumbs():
     for post_rating in post_ratings:
         rating = {
             'user_id': post_rating.user_id,
+            'post_id': post_rating.post_id,
             'value': post_rating.value
         }
         ratings.append(rating)
@@ -175,5 +187,3 @@ def load_user_thumbs_for_post(post):
         ratings.append(rating)
 
     return ratings
-
-
