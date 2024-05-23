@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from src.news_recommender_core_1_1.database import load_post, load_post_ratings, load_user_thumbs, load_post_category
+from src.news_recommender_core_1_1.database import load_post, load_post_ratings, load_user_thumbs_for_post, load_post_category
 from src.recommender_core.recommender_algorithms.user_based_algorithms.user_relevance_classifier.user_evaluation_results import \
     get_thumbs_evaluations, get_playground_evaluations
 from src.recommender_core.data_handling.data_manipulation import DatabaseMethods
@@ -141,7 +141,7 @@ def add_post_features():
         json_record['category'] = load_post_category(post)
         json_record['post_id'] = post.id
         json_record['post_ratings'] = load_post_ratings(post)
-        json_record['thumbs_ratings'] = load_user_thumbs(post)
+        json_record['thumbs_ratings'] = load_user_thumbs_for_post(post)
 
         with open(Path('evaluations/playground_results_with_features.json').as_posix(), 'w', encoding='utf-8') as f:
             json.dump(json_playground_results, f, indent=4, ensure_ascii=False)

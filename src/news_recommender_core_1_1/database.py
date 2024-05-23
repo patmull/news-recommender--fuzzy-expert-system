@@ -29,8 +29,10 @@ Base.prepare(autoload_with=engine)
 Post = Base.classes.posts
 Rating = Base.classes.ratings
 Thumb = Base.classes.thumbs
+UserHistory = Base.classes.user_histories
 
 session = Session(engine)
+
 
 def load_post(slug):
 
@@ -117,7 +119,40 @@ def load_post_ratings(post):
     return ratings
 
 
-def load_user_thumbs(post):
+def load_user_thumbs():
+    ratings = []
+
+    print("relationships:")
+    i = inspect(Post)
+    post_ratings = (session.query(Thumb).all())
+
+    for post_rating in post_ratings:
+        rating = {
+            'user_id': post_rating.user_id,
+            'value': post_rating.value
+        }
+        ratings.append(rating)
+
+    return ratings
+
+
+def load_user_view_histories():
+    ratings = []
+
+    print("relationships:")
+    user_histories = (session.query(UserHistory).all())
+
+    for user_history in user_histories:
+        rating = {
+            'user_id': user_history.user_id,
+            'post_id': user_history.post_id
+        }
+        ratings.append(rating)
+
+    return ratings
+
+
+def load_user_thumbs_for_post(post):
     """
 
     :return: user_id, rating
@@ -140,4 +175,5 @@ def load_user_thumbs(post):
         ratings.append(rating)
 
     return ratings
+
 
