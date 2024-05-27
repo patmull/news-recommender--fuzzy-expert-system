@@ -106,6 +106,7 @@ class ModelBuilder:
         return self.tfidf_matrix
 
 
+
 class ContentBasedRecommender:
     MODEL_NAME = 'Content-Based'
 
@@ -233,6 +234,16 @@ def init_user_interaction_recommender():
         'VIEW': 1.0,
         'LIKE': 2.0,
     }
+
+    logging.debug("interactions_df_views:")
+    logging.debug(interactions_df_views)
+    logging.debug("interactions_df_likes:")
+    logging.debug(interactions_df_likes)
+
+    interactions_df_likes_user = interactions_df_likes[interactions_df_likes.user_id == tested_user_profile_id]
+    num_of_interaction_likes = len(interactions_df_likes_user)
+    interactions_df_views_user = interactions_df_views[interactions_df_views.user_id == tested_user_profile_id]
+    num_of_interaction_views = len(interactions_df_views_user)
 
     # NOTE: Originally interaction_strength and _type => event_*
     interactions_df = pd.concat([interactions_df_likes, interactions_df_views])
@@ -412,7 +423,15 @@ def init_user_interaction_recommender():
     logging.debug("hybrid_recommender_model:")
     logging.debug(hybrid_recommender_model)
 
-    interaction_strength = get_interaction_strength()
+    belief_in_interaction_strength = 8
+    interaction_strength = get_interaction_strength("likes", belief_in_interaction_strength,
+                                                    num_of_interaction_likes)
+    logging.debug("interaction_strength:")
+    logging.debug(interaction_strength)
+
+    belief_in_interaction_strength = 4
+    interaction_strength = get_interaction_strength("views", belief_in_interaction_strength,
+                                                    num_of_interaction_views)
     logging.debug("interaction_strength:")
     logging.debug(interaction_strength)
 
