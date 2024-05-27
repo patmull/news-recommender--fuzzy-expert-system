@@ -194,3 +194,5 @@ categories.out
 keywords.out
 /tests/testing_files/
 /research/user_based/testing_hybrid_classifier_df_results.csv
+
+datasets/articles_df.pkl

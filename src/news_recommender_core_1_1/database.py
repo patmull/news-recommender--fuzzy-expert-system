@@ -1,4 +1,6 @@
+import logging
 import os
+from pathlib import Path
 
 import pandas as pd
 import sqlalchemy.engine
@@ -124,9 +126,36 @@ def load_post_ratings(post):
 def load_posts_df():
     posts_query = session.query(Post)
     sql_posts_query = posts_query.statement.compile(dialect=postgresql.dialect())
-    print("sql_posts_query:")
-    print(sql_posts_query)
-    articles_df = pd.DataFrame(engine.connect().execute(text(str(sql_posts_query))))
+    logging.debug("sql_posts_query:")
+    logging.debug(sql_posts_query)
+
+    file_to_save = Path('datasets/articles_df.pkl')
+
+    if file_to_save.is_file():
+        logging.info("Loading articles_df from: " + file_to_save.as_posix())
+        articles_df = pd.read_pickle(file_to_save.as_posix())
+        return articles_df
+    else:
+        logging.info("No pre-saved file of posts found. Loading posts from RDB and then saving to..." + file_to_save.as_posix())
+        articles_df = pd.DataFrame(engine.connect().execute(text(str(sql_posts_query))))
+        articles_df = articles_df.rename(columns={'id': 'post_id'})
+        articles_df.drop(columns=['bert_vector_representation', 'recommended_word2vec_eval_1',
+                                  'recommended_word2vec_eval_2', 'recommended_word2vec_eval_3',
+                                  'recommended_word2vec_eval_4', 'recommended_word2vec_limited_fasttext',
+                                  'recommended_word2vec_limited_fasttest_full_text',
+                                  'recommended_word2vec_eval_cswiki_1',
+                                  'recommended_doc2vec_eval_cswiki_1',
+                                  'recommended_word2vec',
+                                  'recommended_word2vec_full_text',
+                                  'recommended_tfidf',
+                                  'recommended_tfidf_full_text',
+                                  'recommended_doc2vec',
+                                  'recommended_doc2vec_full_text',
+                                  'recommended_lda',
+                                  'recommended_lda_full_text'
+                                  ], inplace=True)
+        articles_df.to_pickle(file_to_save.as_posix())
+
     return articles_df
 
 
