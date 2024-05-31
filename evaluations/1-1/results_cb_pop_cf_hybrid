@@ -1,0 +1,6 @@
+[2024-05-30 20:54:40,233] [DEBUG] -                          recall@5  recall@10
+model_name
+Content-Based            0.227273   0.260606
+Popularity               0.848485   0.996970
+Collaborative Filtering  0.454545   0.481818
+Hybrid                   0.478788   0.581818
