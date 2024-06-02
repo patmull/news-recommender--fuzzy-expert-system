@@ -8,7 +8,6 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import create_engine, inspect, text
-from torch.distributed.argparse_util import env
 
 Base = automap_base()
 

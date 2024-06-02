@@ -1,4 +1,5 @@
 import logging
+from functools import lru_cache
 
 import matplotlib.pyplot as plt
 from simpful import *
@@ -67,6 +68,7 @@ def plot_fuzzy(TLV, TLV_2, O):
     plt.show()
 
 
+@lru_cache(maxsize=1024)
 def get_model_strength(model_type, belief_in_model, recommendation_coefficient):
 
     logging.debug("model_type: {}".format(model_type))

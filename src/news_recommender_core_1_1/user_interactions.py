@@ -1,6 +1,8 @@
 import logging
 import math
 import random
+import traceback
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -17,6 +19,10 @@ from src.news_recommender_core_1_1.expert_system import get_model_strength, get_
 from src.prefillers.preprocessing.stopwords_loading import load_cz_stopwords
 
 from sklearn.metrics.pairwise import cosine_similarity
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 FUZZY_EXPERT_ENABLED = True
 
@@ -43,7 +49,7 @@ class TfIdf:
 
         _item_ids = self.articles_df['post_id'].tolist()
         _tfidf_matrix = vectorizer.fit_transform(self.articles_df['title'] + " " + self.articles_df['body'])
-        _tfidf_feature_names = vectorizer.get_feature_names()
+        _tfidf_feature_names = vectorizer.get_feature_names_out()
         return _tfidf_matrix, _tfidf_feature_names, _item_ids
 
 
@@ -78,10 +84,11 @@ class ModelBuilder:
         user_item_strengths = np.array(interactions_person_df['interaction_strength']).reshape(-1, 1)
         # Weighted average of item profiles by the interactions strength
         logging.debug("Calculating weighted average of item profiles by the interactions strength...")
-        user_item_strengths_weighted_avg = (np.sum(user_item_profiles.multiply(user_item_strengths), axis=0)
-                                            / np.sum(user_item_strengths))
-        logging.info("Normalizing user profile...")
-        user_profile_norm = sklearn.preprocessing.normalize(user_item_strengths_weighted_avg)
+        user_item_strengths_weighted_avg = (
+                np.sum(user_item_profiles.multiply(user_item_strengths), axis=0) / np.sum(user_item_strengths))
+        # Convert the matrix to a numpy array
+        user_item_strengths_weighted_avg_array = np.asarray(user_item_strengths_weighted_avg)
+        user_profile_norm = sklearn.preprocessing.normalize(user_item_strengths_weighted_avg_array)
         return user_profile_norm
 
     def build_users_profiles(self, interactions_train_df, articles_df):
@@ -94,7 +101,10 @@ class ModelBuilder:
         tfidf_recommender = TfIdf(articles_df)
         self.tfidf_matrix, self.feature_names, self.item_ids = tfidf_recommender.create_tfidf_matrix()
 
-        for person_id in interactions_indexed_df.index.unique():
+        logging.debug("interactions_indexed_df:")
+        logging.debug(interactions_indexed_df.head(10))
+
+        for person_id in interactions_indexed_df.index:
             logging.info("Building user profile for the user: {}".format(person_id))
             user_profiles[person_id] = self.build_users_profile(person_id, interactions_indexed_df)
         return user_profiles
@@ -175,13 +185,13 @@ class HybridRecommender:
         # Getting the top-1000 Content-based filtering recommendations
         cb_recs_df = self.cb_rec_model.recommend_items(user_id=user_id, user_profiles=user_profiles,
                                                        items_to_ignore=items_to_ignore, verbose=verbose,
-                                                       topn=1000).rename(
+                                                       topn=topn).rename(
             columns={'recommendation_strength': 'recommendation_strengthCB'})
 
         # Getting the top-1000 Collaborative filtering recommendations
         cf_recs_df = (self.cf_rec_model.recommend_items(user_id=user_id,
                                                         items_to_ignore=items_to_ignore, verbose=verbose,
-                                                        topn=1000).rename(
+                                                        topn=topn).rename(
             columns={'recommendation_strength': 'recommendation_strengthCF'}
         ))
 
@@ -216,7 +226,8 @@ class HybridRecommender:
             # TODO: Normalize the recommendation_strength
             iteration_dict = {'counter': 0}
 
-            def get_model_strength_with_logging(model_type, belief_in_model, recommendation_strength_normalized):
+            def get_model_strength_with_logging(model_type, belief_in_model, recommendation_strength_normalized,
+                                                iteration_dict):
                 iteration_dict['counter'] += 1
                 logging.debug(f"Iteration count: {iteration_dict['counter']}")
                 return get_model_strength(model_type, belief_in_model,
@@ -227,25 +238,28 @@ class HybridRecommender:
                 lambda x: get_model_strength_with_logging(
                     model_type_cb,
                     belief_in_model_cb,
-                    x['recommendation_strengthCB_normalized']
+                    x['recommendation_strengthCB_normalized'],
+                    iteration_dict
                 ),
                 axis=1
             )
 
+            iteration_dict = {'counter': 0}
             # Do the same for CF
             recs_df['model_strengthCF_fuzzy'] = recs_df.apply(
                 lambda x: get_model_strength_with_logging(
                     model_type_cf,
                     belief_in_model_cf,
-                    x['recommendation_strengthCF_normalized']
+                    x['recommendation_strengthCF_normalized'],
+                    iteration_dict
                 ),
                 axis=1
             )
 
             # Combine the CB and CF model strengths
             recs_df['recommendation_strengthHybrid'] = (
-                        recs_df['model_strengthCB_fuzzy'] * recs_df['recommendation_strengthCB']
-                        + recs_df['model_strengthCF_fuzzy'] * recs_df['recommendation_strengthCF'])
+                    recs_df['model_strengthCB_fuzzy'] * recs_df['recommendation_strengthCB']
+                    + recs_df['model_strengthCF_fuzzy'] * recs_df['recommendation_strengthCF'])
 
         else:
             # Computing a hybrid recommendation score based on CF and CB scores
@@ -274,6 +288,11 @@ def inspect_interactions(person_id, interactions_test_indexed_df, interactions_t
         interactions_df = interactions_test_indexed_df
     else:
         interactions_df = interactions_train_indexed_df
+
+    if person_id not in interactions_df.index:
+        logging.error("Invalid user_id: " + str(person_id))
+        return None
+
     return interactions_df.loc[person_id].merge(articles_df, how='left',
                                                 left_on='post_id',
                                                 right_on='post_id') \
@@ -282,9 +301,9 @@ def inspect_interactions(person_id, interactions_test_indexed_df, interactions_t
     ]
 
 
-def init_user_interaction_recommender():
-    tested_user_profile_id = 3189
-
+def init_user_interaction_recommender(num_of_interactions: Optional[int] = None,
+                                      num_of_users: Optional[int] = None,
+                                      topn_recommended=1000000000):
     user_thumbs = load_user_thumbs()
     interactions_df_likes = pd.DataFrame.from_dict(user_thumbs, orient='columns')
     interactions_df_likes = interactions_df_likes[interactions_df_likes.value != 0]
@@ -309,10 +328,18 @@ def init_user_interaction_recommender():
     logging.debug("interactions_df_likes:")
     logging.debug(interactions_df_likes)
 
-    interactions_df_likes_user = interactions_df_likes[interactions_df_likes.user_id == tested_user_profile_id]
-    num_of_interaction_likes = len(interactions_df_likes_user)
-    interactions_df_views_user = interactions_df_views[interactions_df_views.user_id == tested_user_profile_id]
-    num_of_interaction_views = len(interactions_df_views_user)
+    test_profile_inspect = True
+
+    tested_user_profile_id = random.choice(interactions_df_likes['user_id'].values.tolist())
+    logging.info("""Tested user profile id: {}""".format(tested_user_profile_id))
+
+    if tested_user_profile_id in interactions_df_views['user_id']:
+        logging.info("""Tested user profile id: {}""".format(tested_user_profile_id))
+        test_profile_inspect = False
+
+    # TODO: Replace this with the average num. of interactions
+    num_of_interaction_likes = len(interactions_df_likes)
+    num_of_interaction_views = len(interactions_df_views)
 
     if FUZZY_EXPERT_ENABLED:
         belief_in_interaction_strength = 8
@@ -342,7 +369,8 @@ def init_user_interaction_recommender():
 
     users_interactions_count_df = interactions_df.groupby(['user_id', 'post_id']).size().groupby('user_id').size()
     print('# users: %d' % len(users_interactions_count_df))
-    users_with_enough_interactions_df = users_interactions_count_df[users_interactions_count_df >= 5].reset_index()[['user_id']]
+    users_with_enough_interactions_df = users_interactions_count_df[users_interactions_count_df >= 5].reset_index()[
+        ['user_id']]
     print('# users with at least 5 interactions: %d' % len(users_with_enough_interactions_df))
 
     print('# of interactions: %d' % len(interactions_df))
@@ -361,10 +389,48 @@ def init_user_interaction_recommender():
     print('# of unique user/item interactions: %d' % len(interactions_full_df))
     print(interactions_full_df.head(10))
 
-    interactions_train_df, interactions_test_df = train_test_split(interactions_full_df,
-                                                                   stratify=interactions_full_df['user_id'],
-                                                                   test_size=0.20,
-                                                                   random_state=42)
+    if num_of_interactions:
+        # Get unique user IDs and sample N of them
+        unique_user_ids = interactions_full_df['user_id'].unique()
+        selected_user_ids = pd.Series(unique_user_ids).sample(n=num_of_interactions, random_state=42, replace=True)
+
+        # Filter the DataFrame to keep all rows for the selected user IDs
+        df_to_keep = interactions_full_df[interactions_full_df['user_id'].isin(selected_user_ids)]
+
+        # remove user with too little interactions:
+        interactions_full_df = df_to_keep[df_to_keep.groupby('user_id')['user_id'].transform('size') > 5]
+
+    print('# of unique user/item interactions: %d' % len(interactions_full_df))
+    print(interactions_full_df.head(10))
+    if num_of_users:
+        # Get unique user IDs and sample N of them
+        unique_user_ids = interactions_full_df['user_id'].unique()
+        selected_user_ids = pd.Series(unique_user_ids).sample(n=num_of_users, random_state=42)
+
+        # Filter the DataFrame to keep all rows for the selected user IDs
+        interactions_full_df = interactions_full_df[interactions_full_df['user_id'].isin(selected_user_ids)]
+
+    # remove user with too little interactions:
+    print('# of unique user/item interactions: %d' % len(interactions_full_df))
+    print(interactions_full_df.head(10))
+    print(interactions_full_df['user_id'].value_counts())
+
+    if num_of_interactions:
+        interactions_full_df = interactions_full_df.sample(num_of_interactions)
+
+    interactions_full_df = interactions_full_df[
+        interactions_full_df.groupby('user_id')['user_id'].transform('size') >= 5]
+
+    try:
+        interactions_train_df, interactions_test_df = train_test_split(interactions_full_df,
+                                                                       stratify=interactions_full_df['user_id'],
+                                                                       test_size=0.20,
+                                                                       random_state=42)
+    except ValueError as e:
+        logging.error("Value error had occurred when trying to split data. "
+                      "Probably caused by too few interactions for some users. Full exception: "
+                      + str(traceback.format_exc()))
+        raise e
 
     print('# interactions on Train set: %d' % len(interactions_train_df))
     print('# interactions on Test set: %d' % len(interactions_test_df))
@@ -398,7 +464,8 @@ def init_user_interaction_recommender():
     user_profiles = model_builder.build_users_profiles(interactions_train_df, articles_df)
 
     print('Evaluating Popularity recommendation model...')
-    pop_global_metrics, pop_detailed_results_df = model_evaluator.evaluate_model(popularity_model, user_profiles)
+    pop_global_metrics, pop_detailed_results_df = model_evaluator.evaluate_model(popularity_model, user_profiles,
+                                                                                 topn_recommended)
     print('\nGlobal metrics:\n%s' % pop_global_metrics)
     print(pop_detailed_results_df.head(10).to_string())
 
@@ -407,18 +474,16 @@ def init_user_interaction_recommender():
     logging.debug("Num. of user profiles:")
     logging.debug(len(user_profiles))
 
-    my_profile = user_profiles[tested_user_profile_id]
-    logging.debug("my_profile.shape:")
-    logging.debug(my_profile.shape)
-
     _tfidf_feature_names = model_builder.get_tfidf_feature_names()
-    features_names = pd.DataFrame(sorted(zip(_tfidf_feature_names,
-                                             user_profiles[tested_user_profile_id].flatten().tolist()),
-                                         key=lambda x: -x[1])[:20],
-                                  columns=['token', 'relevance'])
 
-    logging.debug("features_names:")
-    logging.debug(features_names)
+    if tested_user_profile_id in user_profiles:
+        features_names = pd.DataFrame(sorted(zip(_tfidf_feature_names,
+                                                 user_profiles[tested_user_profile_id].flatten().tolist()),
+                                             key=lambda x: -x[1])[:20],
+                                      columns=['token', 'relevance'])
+
+        logging.debug("features_names:")
+        logging.debug(features_names)
 
     content_based_recommender_model = ContentBasedRecommender(articles_df,
                                                               model_builder.get_tfidf_matrix(),
@@ -426,7 +491,7 @@ def init_user_interaction_recommender():
 
     print('Evaluating Content-Based Filtering model...')
     cb_global_metrics, cb_detailed_results_df = model_evaluator.evaluate_model(content_based_recommender_model,
-                                                                               user_profiles)
+                                                                               user_profiles, topn_recommended)
     print('\nGlobal metrics:\n%s' % cb_global_metrics)
     cb_detailed_results_df.head(10)
 
@@ -452,7 +517,19 @@ def init_user_interaction_recommender():
     NUMBER_OF_FACTORS_MF = 15
     # Performs matrix factorization of the original user item matrix
     # U, sigma, Vt = svds(users_items_pivot_matrix, k = NUMBER_OF_FACTORS_MF)
-    U, sigma, Vt = svds(users_items_pivot_sparse_matrix.todense(), k=NUMBER_OF_FACTORS_MF)
+    try:
+        U, sigma, Vt = svds(users_items_pivot_sparse_matrix.todense(), k=NUMBER_OF_FACTORS_MF)
+    except ValueError as e:
+        logging.error("Value error had occurred when trying to perform SVD. "
+                      "Probably caused by too few interactions for some users. Full exception: "
+                      + str(traceback.format_exc()))
+        logging.info("users_items_pivot_sparse_matrix.shape:")
+        logging.info(users_items_pivot_sparse_matrix.shape)
+        logging.info("Trying smaller number of factors.")
+        NUMBER_OF_FACTORS_MF = 10
+        logging.warning(
+            "Smaller number of factors: " + str(NUMBER_OF_FACTORS_MF) + " will be used but can lead to poor results!")
+        U, sigma, Vt = svds(users_items_pivot_sparse_matrix.todense(), k=NUMBER_OF_FACTORS_MF)
 
     logging.debug("SVD shapes:")
     logging.debug(U.shape)
@@ -479,7 +556,8 @@ def init_user_interaction_recommender():
     logging.debug(cf_recommender_model)
 
     print('Evaluating Collaborative Filtering (SVD Matrix Factorization) model...')
-    cf_global_metrics, cf_detailed_results_df = model_evaluator.evaluate_model(cf_recommender_model, user_profiles)
+    cf_global_metrics, cf_detailed_results_df = model_evaluator.evaluate_model(cf_recommender_model, user_profiles,
+                                                                               topn_recommended)
     print('\nGlobal metrics:\n%s' % cf_global_metrics)
     logging.debug(cf_detailed_results_df.head(10))
 
@@ -488,7 +566,7 @@ def init_user_interaction_recommender():
 
     print('Evaluating Hybrid model...')
     hybrid_global_metrics, hybrid_detailed_results_df = model_evaluator.evaluate_model(hybrid_recommender_model,
-                                                                                       user_profiles)
+                                                                                       user_profiles, topn_recommended)
     print('\nGlobal metrics:\n%s' % hybrid_global_metrics)
     hybrid_detailed_results_df.head(10)
 
@@ -496,17 +574,28 @@ def init_user_interaction_recommender():
         .set_index('model_name')
     logging.debug(global_metrics_df)
 
-    _inspect_interactions = (inspect_interactions(tested_user_profile_id,
-                                                  interactions_test_indexed_df,
-                                                  interactions_train_indexed_df,
-                                                  test_set=False).head(20))
-    logging.debug("inspect_interactions:")
-    logging.debug(_inspect_interactions)
+    inspect_interactions(tested_user_profile_id,
+                         interactions_test_indexed_df,
+                         interactions_train_indexed_df,
+                         test_set=False)
 
-    hybrid_recommender_model = hybrid_recommender_model.recommend_items(tested_user_profile_id, user_profiles, topn=20,
-                                                                        verbose=True)
-    logging.debug("hybrid_recommender_model:")
-    logging.debug(hybrid_recommender_model)
+    if tested_user_profile_id in user_profiles['user_id']:
+        _inspect_interactions = inspect_interactions(tested_user_profile_id,
+                                                     interactions_test_indexed_df,
+                                                     interactions_train_indexed_df,
+                                                     test_set=True)
+
+        if _inspect_interactions:
+            _inspect_interactions = _inspect_interactions.head(20)
+            logging.debug("inspect_interactions:")
+            logging.debug(_inspect_interactions)
+
+    if tested_user_profile_id in user_profiles['user_id']:
+        hybrid_recommender_model = hybrid_recommender_model.recommend_items(tested_user_profile_id, user_profiles,
+                                                                            topn=20,
+                                                                            verbose=True)
+        logging.debug("Hybrid_recommender_model for the tested user profile {}:".format(tested_user_profile_id))
+        logging.debug(hybrid_recommender_model)
 
     return item_popularity_df
 
@@ -568,7 +657,8 @@ class ModelEvaluator:
         non_interacted_items = all_items - interacted_items
 
         random.seed(seed)
-        non_interacted_items_sample = random.sample(non_interacted_items, sample_size)
+        non_interacted_items_sample = random.sample(list(non_interacted_items), sample_size)
+
         return set(non_interacted_items_sample)
 
     def _verify_hit_top_n(self, item_id, recommended_items, topn):
@@ -579,7 +669,7 @@ class ModelEvaluator:
         hit = int(index in range(0, topn))
         return hit, index
 
-    def evaluate_model_for_user(self, model, user_id, user_profiles):
+    def evaluate_model_for_user(self, model, user_id, user_profiles, topn_recommended=1000000000):
         # Getting the items in test set
         interacted_values_test_set = self.interactions_test_indexed_df.loc[user_id]
         if type(interacted_values_test_set['post_id']) == pd.Series:
@@ -593,13 +683,13 @@ class ModelEvaluator:
             person_recs_df = model.recommend_items(user_id=user_id,
                                                    items_to_ignore=get_items_interacted(user_id,
                                                                                         self.interactions_train_indexed_df),
-                                                   topn=10000000000)
+                                                   topn=topn_recommended)
         else:
             person_recs_df = model.recommend_items(user_id=user_id,
                                                    user_profiles=user_profiles,
                                                    items_to_ignore=get_items_interacted(user_id,
                                                                                         self.interactions_train_indexed_df),
-                                                   topn=10000000000)
+                                                   topn=topn_recommended)
 
         logging.debug("Model name: %s" % model.get_model_name())
         logging.debug("recommended df:")
@@ -641,13 +731,13 @@ class ModelEvaluator:
                           'recall@10': recall_at_10}
         return person_metrics
 
-    def evaluate_model(self, model, user_profiles):
+    def evaluate_model(self, model, user_profiles, topn_recommended=1000000000):
         # print('Running evaluation for users')
         people_metrics = []
         for idx, user_id in enumerate(list(self.interactions_test_indexed_df.index.unique().values)):
             # if idx % 100 == 0 and idx > 0:
             #    print('%d users processed' % idx)
-            person_metrics = self.evaluate_model_for_user(model, user_id, user_profiles)
+            person_metrics = self.evaluate_model_for_user(model, user_id, user_profiles, topn_recommended)
             person_metrics['_user_id'] = user_id
             people_metrics.append(person_metrics)
             print('%d users processed' % idx)
