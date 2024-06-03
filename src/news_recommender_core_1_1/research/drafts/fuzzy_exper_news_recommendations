@@ -1,0 +1,14 @@
+Incorporating fuzzy methods into the recommender systems was found to be a successful in various fields, e.g. e-commerce
+(Walek & Fajmon, 2021), entertainment recommendations (Fojtik & Walek, 2020) or ... (TODO: FIND OTHERS).
+In our previous work, we build from scratch a recommendation news web application and collected data from several users and their actions
+like article link click-through and binary rating with the thumbs up and down symbols. Since we had no user data, we focused mainly content-based (CB) recommendations based on the
+similarities of an articles to a one chosen article (e.g. the user saw these recommendation when clicked on particular articles below the article text.
+Some of those recommendation methods like the CB method incorporating Word2Vec and cosine similarity found a decent success among the users, who rated this method with average precision of approx. 75%.
+Since we had no prior user data and we could not assess the parameters of the models according to the goal task of recommending
+web articles to the users, we needed to rely on a different strategies to choose the hyperparameter models: we used the
+Question-Words and WordSim353 datasets to estimate the accuracy of the Word2Vec model and then created a few models based on the most promising results.
+The model with the lowest Out-of-Vocabulary metric outperformed other methods in the final task of recommending the news articles to the user.
+The other methods were for example Doc2Vec set on default parameters with the Cosine Similarity, Latent-Dirichlet Allocation (LaDA) with parameters
+fine-tuned by the coherence metrics used with the Jensen-Shannon distance measurements, TF-IDF vectorization with
+the Cosine similarity used in a 2 ways: providing N recommendations to a 1 queried article (like in the case of Word2Vec, Doc2Vev, LaDA) and by providing N recommendations to a keywords of topics of interests typed by the user in his profile,
+SVD method (collaborative-filtering approach based on the user ratings) and the most minimalistic method of all: recommending the most popular articles in a category which was selected as interesting in the user profile.
