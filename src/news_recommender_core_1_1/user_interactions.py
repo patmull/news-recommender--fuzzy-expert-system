@@ -482,6 +482,10 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                                                        stratify=interactions_full_df['user_id'],
                                                                        test_size=0.20,
                                                                        random_state=42)
+        interactions_train_df, interactions_validation_df = train_test_split(interactions_train_df,
+                                                                             stratify=interactions_train_df['user_id'],
+                                                                             test_size=0.25,
+                                                                             random_state=42)
     except ValueError as e:
         logging.error("Value error had occurred when trying to split data. "
                       "Probably caused by too few interactions for some users. Full exception: "
@@ -658,13 +662,20 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     if tested_user_profile_id in user_profiles:
         hybrid_recommender_model = hybrid_recommender_model.recommend_items_hybrid(tested_user_profile_id,
                                                                                    user_profiles,
+                                                                                   belief_in_model_cb,
+                                                                                   belief_in_model_cf,
                                                                                    topn=20,
                                                                                    verbose=True)
         logging.debug("Hybrid_recommender_model for the tested user profile {}:".format(tested_user_profile_id))
         logging.debug(hybrid_recommender_model)
 
-    recall_at_5 = global_metrics_df.loc['Hybrid']['recall@5']
-    recall_at_10 = global_metrics_df.loc['Hybrid']['recall@10']
+    if use_fuzzy_expert is False:
+        model_type = 'Hybrid'
+    else:
+        model_type = 'Fuzzy Hybrid'
+
+    recall_at_5 = global_metrics_df.loc[model_type]['recall@5']
+    recall_at_10 = global_metrics_df.loc[model_type]['recall@10']
 
     return recall_at_5, recall_at_10
 
@@ -707,6 +718,8 @@ class CFRecommender:
                                                           left_on='post_id',
                                                           right_on='post_id')[
                 ['recommendation_strength', 'post_id', 'title', 'slug']]
+
+        return recommendations_df
 
 
 class ModelEvaluator:
@@ -872,89 +885,3 @@ class PopularityRecommender:
         logging.debug(recommendations_df.head(10))
 
         return recommendations_df
-
-
-"""
-fine-tuning the Hybrid (draft):
-
-class TfIdf:
-
-    def __init__(self, articles_df, ngram_range=(1, 2), min_df=0.003, max_df=0.5, max_features=5000):
-        self.articles_df = articles_df
-        self.ngram_range = ngram_range
-        self.min_df = min_df
-        self.max_df = max_df
-        self.max_features = max_features
-
-    def create_tfidf_matrix(self):
-        logging.debug("Creating TF-IDF matrix...")
-        stopwords_list = load_cz_stopwords()
-
-        vectorizer = TfidfVectorizer(
-            analyzer='word',
-            ngram_range=self.ngram_range,
-            min_df=self.min_df,
-            max_df=self.max_df,
-            max_features=self.max_features,
-            stop_words=stopwords_list
-        )
-        # Remaining code stays the same...
-Next, modify the HybridRecommender class to accept ensemble weights:
-
-Copy
-class HybridRecommender:
-    # ... (keep the existing code)
-
-    def __init__(self, cb_rec_model, cf_rec_model, items_df, cb_ensemble_weight=1.0, cf_ensemble_weight=1.0,
-                 fuzzy_expert=False):
-        # ... (keep the existing code)
-        self.cb_ensemble_weight = cb_ensemble_weight
-        self.cf_ensemble_weight = cf_ensemble_weight
-        # ... (keep the remaining constructor code)
-
-    def recommend_items_hybrid(self, user_id, user_profiles, items_to_ignore=[], topn=10, verbose=False):
-        # ... (keep the existing code)
-        else:
-            # Use the passed ensemble weights
-            recs_df['recommendation_strengthHybrid'] = (recs_df['recommendation_strengthCB'] * self.cb_ensemble_weight) \
-                                                       + (recs_df['recommendation_strengthCF'] * self.cf_ensemble_weight)
-        # ... (keep the remaining method code)
-To perform the grid search, you would then define a grid of hyperparameters and iterate over all possible combinations. For example:
-
-Copy
-from sklearn.model_selection import ParameterGrid
-
-# Define the parameter grid
-param_grid = {
-    'ngram_range': [(1, 1), (1, 2)],
-    'min_df': [0.001, 0.003],
-    'max_df': [0.5, 0.7],
-    'max_features': [5000, 10000],
-    'cb_ensemble_weight': [0.5, 1.0, 1.5],
-    'cf_ensemble_weight': [0.5, 1.0, 1.5]
-}
-
-# Initialize the best_score and best_params
-best_score = 0
-best_params = None
-
-# Iterate over all combinations of hyperparameters
-for params in ParameterGrid(param_grid):
-    # Create TfIdf and HybridRecommender instances with the current set of parameters
-    tfidf = TfIdf(articles_df, ngram_range=params['ngram_range'], min_df=params['min_df'], max_df=params['max_df'], max_features=params['max_features'])
-    hybrid_recommender = HybridRecommender(cb_rec_model, cf_rec_model, articles_df, cb_ensemble_weight=params['cb_ensemble_weight'], cf_ensemble_weight=params['cf_ensemble_weight'])
-
-    # Evaluate the hybrid recommender system
-    # (You'll need to define or modify an evaluation function that can return a score for comparison)
-    score = evaluate_recommender_system(hybrid_recommender, user_profiles, interactions_test_indexed_df)
-
-    # Update best_score and best_params if the current score is better
-    if score > best_score:
-        best_score = score
-        best_params = params
-
-# After the grid search, best_params will contain the parameters of the best model
-print("Best Score: ", best_score)
-print("Best Params: ", best_params)
-
-"""
