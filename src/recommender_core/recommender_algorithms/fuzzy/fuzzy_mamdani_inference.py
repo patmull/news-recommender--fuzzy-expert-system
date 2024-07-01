@@ -86,7 +86,7 @@ def inference_simple_mamdani_cb_mixing(similarity, freshness, returned_method):
 
     # A simple fuzzy inference system for the EnsembleRatio problem
     # Create a fuzzy system object
-    FS = FuzzySystem()
+    FS = FuzzySystem(verbose=True)
 
     # Define fuzzy sets and linguistic variables
     S_1 = FuzzySet(function=Trapezoidal_MF(a=0, b=0, c=0.2, d=0.4), term="small")
