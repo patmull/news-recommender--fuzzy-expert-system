@@ -184,9 +184,6 @@ database/db_backups/local_dumps/db_preliminary.sql
 models/for_hybrid/
 /research/user_based/output_files/
 
-results
-/results
-
 nohup.out
 thumbs.out
 stars.out
