@@ -170,9 +170,6 @@ w2v_idnes.model
 precalc_matrices
 /precalc_matrices
 
-requirements-generated.txt
-requirements_generated.txt
-
 deploy_venv
 
 models/w2v_model_limited_test.vectors.npy
