@@ -37,40 +37,32 @@ def get_interaction_strength(interaction_type, belief_in_interaction_strength, n
     output_medium_upper_bound = 1.5
     output_high_upper_bound = 2
 
-    O1 = TriangleFuzzySet(0, 0, output_low_upper_bound, term="small")
-    O2 = TriangleFuzzySet(output_medium_lower_bound, output_low_upper_bound,
-                          output_medium_upper_bound, term="medium")
-    O3 = TriangleFuzzySet(output_medium_center, output_high_upper_bound,
-                          output_high_upper_bound, term="big")
+    # For belief variables
+    S1 = TrapezoidFuzzySet(0, 0, 2, 4, term="small")
+    S2 = TrapezoidFuzzySet(2, 4, 6, 8, term="medium")
+    S3 = TrapezoidFuzzySet(6, 8, 10, 10, term="big")
 
-    O = LinguisticVariable([O1, O2, O3], universe_of_discourse=[0, output_high_upper_bound])
-    FS_model_strength.add_linguistic_variable("model_strength", O)
+    belief_var = LinguisticVariable([S1, S2, S3], universe_of_discourse=[0, 10])
+    FS_recommendation_strength_hybrid.add_linguistic_variable("belief_in_cf_model", belief_var)
+    FS_recommendation_strength_hybrid.add_linguistic_variable("belief_in_cb_model", belief_var)
 
-    O = LinguisticVariable([O1, O2, O3], universe_of_discourse=[0, output_high_upper_bound])
-    FS_interaction_strength.add_linguistic_variable("recommendation_strength", O)
+    # For recommendation coefficient variables
+    R1 = TrapezoidFuzzySet(0, 0, 0.3, 0.5, term="small")
+    R2 = TrapezoidFuzzySet(0.3, 0.5, 0.7, 0.9, term="medium")
+    R3 = TrapezoidFuzzySet(0.7, 0.9, 1, 1, term="big")
 
-    """
-    FS_interaction_strength.add_rules([
-        "IF (belief_in_{}_interaction_strength IS small) AND (number_of_interactions IS small) THEN (recommendation_strength IS small)".format(
-            interaction_type),
-        "IF (belief_in_{}_interaction_strength IS small) AND (number_of_interactions IS medium) THEN (recommendation_strength IS small)".format(
-            interaction_type),
-        "IF (belief_in_{}_interaction_strength IS small) AND (number_of_interactions IS big) THEN (recommendation_strength IS small)".format(
-            interaction_type),
-        "IF (belief_in_{}_interaction_strength IS medium) AND (number_of_interactions IS small) THEN (recommendation_strength IS small)".format(
-            interaction_type),
-        "IF (belief_in_{}_interaction_strength IS medium) AND (number_of_interactions IS medium) THEN (recommendation_strength IS medium)".format(
-            interaction_type),
-        "IF (belief_in_{}_interaction_strength IS medium) AND (number_of_interactions IS big) THEN (recommendation_strength IS big)".format(
-            interaction_type),
-        "IF (belief_in_{}_interaction_strength IS big) AND (number_of_interactions IS small) THEN (recommendation_strength IS medium)".format(
-            interaction_type),
-        "IF (belief_in_{}_interaction_strength IS big) AND (number_of_interactions IS medium) THEN (recommendation_strength IS medium)".format(
-            interaction_type),
-        "IF (belief_in_{}_interaction_strength IS big) AND (number_of_interactions IS big) THEN (recommendation_strength IS big)".format(
-            interaction_type),
-    ])
-    """
+    rec_coef_var = LinguisticVariable([R1, R2, R3], universe_of_discourse=[0, 1])
+    FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cf", rec_coef_var)
+    FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cb", rec_coef_var)
+
+    # For output variable (model strength)
+    O1 = TrapezoidFuzzySet(0, 0, 0.4, 0.8, term="small")
+    O2 = TrapezoidFuzzySet(0.4, 0.8, 1.2, 1.6, term="medium")
+    O3 = TrapezoidFuzzySet(1.2, 1.6, 2, 2, term="big")
+
+    O = LinguisticVariable([O1, O2, O3], universe_of_discourse=[0, 2])
+    FS_recommendation_strength_hybrid.add_linguistic_variable("model_strength", O)
+
     FS_interaction_strength.add_rules([
         "IF (belief_in_{}_interaction_strength IS small) THEN (recommendation_strength IS small)".format(
             interaction_type),
@@ -207,7 +199,8 @@ def get_model_strength(model_type, belief_in_model, recommendation_coefficient):
 
 
 @lru_cache(maxsize=131072)
-def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb, recommendation_coefficient_cf,
+def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
+                                       recommendation_coefficient_cf,
                                        recommendation_coefficient_cb):
     logging.debug("belief_in_model_cf: {}".format(belief_in_model_cf))
     logging.debug("belief_in_model_cb: {}".format(belief_in_model_cb))
@@ -258,85 +251,22 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb, r
     FS_recommendation_strength_hybrid.add_linguistic_variable("model_strength", O)
 
     FS_recommendation_strength_hybrid.add_rules([
-        "IF (belief_in_cf_model IS small) AND (belief_in_cb_model IS small) THEN (model_strength IS small)",
-
+        "IF (belief_in_cf_model IS big) AND (recommendation_coefficient_cf IS big) THEN (model_strength IS big)",
+        "IF (belief_in_cb_model IS big) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS big)",
         "IF (belief_in_cf_model IS small) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS small)",
         "IF (belief_in_cb_model IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS small)",
-
-        "IF (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS small)",
-
-        "IF (belief_in_cf_model IS small) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS small)",
-
-        "IF (belief_in_cb_model IS small) AND (recommendation_coefficient_cb IS small) AND (belief_in_cf_model IS medium) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS small)",
-
-        "IF (belief_in_cb_model IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS medium)",
-        "IF (belief_in_cf_model IS small) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS medium)",
-
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS medium) AND(recommendation_coefficient_cf IS medium) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS medium)",
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS small)",
-
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS small)",
-        "IF (belief_in_cb_model IS medium) AND (belief_in_cf_model IS small) AND (recommendation_coefficient_cb IS small) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS small)",
-
-        "IF (belief_in_cb_model IS medium) AND (recommendation_coefficient_cb IS medium) AND (belief_in_cf_model IS small) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS medium)",
-        "IF (belief_in_cf_model IS medium) AND (recommendation_coefficient_cf IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS medium)",
-
-        "IF (belief_in_cf_model IS medium) AND (recommendation_coefficient_cf IS medium) AND (belief_in_cb_model IS big) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS big)",
-        "IF (belief_in_cb_model IS medium) AND (recommendation_coefficient_cb IS medium) AND (belief_in_cf_model IS big) AND (recommendation_coefficient_cf IS big) THEN (model_strength IS big)",
-
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS small)",
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS small)",
-
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS big) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS big)",
-        "IF (belief_in_cb_model IS medium) AND (belief_in_cf_model IS big) AND (recommendation_coefficient_cb IS small) AND (recommendation_coefficient_cf IS big) THEN (model_strength IS big)",
-
-        "IF (belief_in_cb_model IS medium) AND (belief_in_cf_model IS small) AND (recommendation_coefficient_cb IS small) AND (recommendation_coefficient_cf IS big) THEN (model_strength IS small)",
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS small)",
-
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS big) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS medium)",
-        "IF (belief_in_cb_model IS medium) AND (belief_in_cf_model IS small) AND (recommendation_coefficient_cb IS big) AND (recommendation_coefficient_cf IS big) THEN (model_strength IS medium)",
-
-        "IF (belief_in_cb_model IS medium) AND (belief_in_cf_model IS small) AND (recommendation_coefficient_cb IS small) AND (recommendation_coefficient_cf IS big) THEN (model_strength IS small)",
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS small)",
-
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS big) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS medium)",
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS big) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS medium)",
-
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS big) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS medium)",
-        "IF (belief_in_cb_model IS medium) AND (belief_in_cf_model IS small) AND (recommendation_coefficient_cb IS big) AND (recommendation_coefficient_cf IS medium) THEN (model_strength IS medium)",
-
+        "IF (belief_in_cf_model IS medium) AND (recommendation_coefficient_cf IS medium) THEN (model_strength IS medium)",
+        "IF (belief_in_cb_model IS medium) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS medium)",
+        "IF (belief_in_cf_model IS big) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS medium)",
+        "IF (belief_in_cb_model IS big) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS medium)",
+        "IF (belief_in_cf_model IS small) AND (recommendation_coefficient_cf IS big) THEN (model_strength IS medium)",
+        "IF (belief_in_cb_model IS small) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS medium)",
         "IF (belief_in_cf_model IS big) AND (belief_in_cb_model IS big) AND (recommendation_coefficient_cf IS big) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS big)",
-        "IF (belief_in_cb_model IS big) AND (belief_in_cf_model IS big) AND (recommendation_coefficient_cb IS big) AND (recommendation_coefficient_cf IS big) THEN (model_strength IS big)",
-
-        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS medium) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS medium)",
-        "IF (belief_in_cb_model IS medium) AND (belief_in_cf_model IS small) AND (recommendation_coefficient_cb IS medium) AND (recommendation_coefficient_cf IS medium) THEN (model_strength IS medium)",
-
-        "IF (belief_in_cb_model IS big) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS big)",
-        "IF (belief_in_cf_model IS big) AND (recommendation_coefficient_cf IS big) THEN (model_strength IS big)",
-
-        "IF (belief_in_cf_model IS big) AND (belief_in_cb_model IS big) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS small)",
-        "IF (belief_in_cb_model IS big) AND (belief_in_cf_model IS big) AND (recommendation_coefficient_cb IS small) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS small)",
-
-        "IF (belief_in_cf_model IS big) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS medium)",
-        "IF (belief_in_cb_model IS big) AND (belief_in_cf_model IS medium) AND (recommendation_coefficient_cb IS small) AND (recommendation_coefficient_cf IS medium) THEN (model_strength IS medium)",
-
-        "IF (belief_in_cf_model IS big) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS small)",
-        "IF (belief_in_cb_model IS big) AND (belief_in_cf_model IS medium) AND (recommendation_coefficient_cb IS small) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS small)",
-
-        "IF (belief_in_cf_model IS big) AND (belief_in_cf_model IS medium) AND (recommendation_coefficient_cf IS small)  AND (recommendation_coefficient_cf IS big) THEN (model_strength IS medium)",
-        "IF (belief_in_cb_model IS big) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cb IS small) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS medium)",
-
-        "IF (belief_in_cf_model IS big) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS small)",
-        "IF (belief_in_cb_model IS big) AND (belief_in_cf_model IS small) AND (recommendation_coefficient_cb IS small) AND (recommendation_coefficient_cf IS medium) THEN (model_strength IS small)",
-
-        "IF (belief_in_cf_model IS big) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cf IS big) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS big)",
-        "IF (belief_in_cb_model IS big) AND (belief_in_cf_model IS medium) AND (recommendation_coefficient_cb IS big) AND (recommendation_coefficient_cf IS medium) THEN (model_strength IS big)",
-
-        "IF (belief_in_cf_model IS big) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cf IS big) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS big)",
-        "IF (belief_in_cb_model IS big) AND (belief_in_cf_model IS medium) AND (recommendation_coefficient_cb IS big) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS big)",
-
-        "IF (belief_in_cb_model IS big) AND (belief_in_cf_model IS small) AND (recommendation_coefficient_cb IS big) AND (recommendation_coefficient_cf IS small) THEN (model_strength IS big)",
-        "IF (belief_in_cf_model IS big) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS big) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS big)",
+        "IF (belief_in_cf_model IS small) AND (belief_in_cb_model IS small) AND (recommendation_coefficient_cf IS small) AND (recommendation_coefficient_cb IS small) THEN (model_strength IS small)",
+        "IF (belief_in_cf_model IS medium) OR (belief_in_cb_model IS medium) OR (recommendation_coefficient_cf IS medium) OR (recommendation_coefficient_cb IS medium) THEN (model_strength IS medium)",
+        "IF (belief_in_cf_model IS big) AND (recommendation_coefficient_cf IS big) AND (belief_in_cb_model IS small) THEN (model_strength IS big)",
+        "IF (belief_in_cb_model IS big) AND (recommendation_coefficient_cb IS big) AND (belief_in_cf_model IS small) THEN (model_strength IS big)",
+        "IF (belief_in_cf_model IS medium) AND (recommendation_coefficient_cf IS big) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS big)",
     ])
 
     FS_recommendation_strength_hybrid.set_variable("belief_in_cf_model", belief_in_model_cf)

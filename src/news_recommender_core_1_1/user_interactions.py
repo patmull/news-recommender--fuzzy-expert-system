@@ -194,13 +194,12 @@ class HybridRecommender:
         self.cf_ensemble_weight = cf_ensemble_weight
         self.items_df = items_df
         self.fuzzy_expert_enabled = fuzzy_expert
-        if self.fuzzy_expert_enabled:
+        if fuzzy_expert:
             self.model_name = 'Fuzzy Hybrid'
         else:
             self.model_name = 'Hybrid'
         self.iteration_counter = 0
         self.recs_df = pd.DataFrame()
-        self.point_to_save = ''
 
     def save_recommendation_strength(self, interactions_from_selected_users_df):
         filename_to_save = 'recommendation_strength_{}.pkl'.format(self.point_to_save)
@@ -251,80 +250,78 @@ class HybridRecommender:
     def recommend_items_hybrid(self, user_id, user_profiles, belief_in_model_cb, belief_in_model_cf, items_to_ignore=[],
                                topn=10, verbose=False):
 
+        self.point_to_save = '{}_{}'.format(belief_in_model_cb, belief_in_model_cf)
+        self.recs_df = self.load_recommendation_strength()
+
+        if self.recs_df is None:
+            # Getting the top N from Content-based filtering recommendations
+            cb_recs_df = self.cb_rec_model.recommend_items_cb(user_id=user_id, user_profiles=user_profiles,
+                                                              items_to_ignore=items_to_ignore, verbose=verbose,
+                                                              topn=topn).rename(
+                columns={'recommendation_strength': 'recommendation_strengthCB'})
+
+            # Getting the top N from Collaborative filtering recommendations
+            cf_recs_df = (self.cf_rec_model.recommend_items_cf(user_id=user_id,
+                                                               items_to_ignore=items_to_ignore, verbose=verbose,
+                                                               topn=topn).rename(
+                columns={'recommendation_strength': 'recommendation_strengthCF'}
+            ))
+
+            # Combining the results by post_id
+            self.recs_df = cb_recs_df.merge(cf_recs_df,
+                                            how='outer',
+                                            left_on='post_id',
+                                            right_on='post_id').fillna(0.0)
+
+            # TODO: We need to radically lower the number of the recommendations. PRIORITY: A+
+            # TODO: 1. Cut thw cases where recommendation_strength is 0
+            logging.debug("self.recs_df:")
+            logging.debug(self.recs_df)
+
+            recommender_inputs = []
+            # TODO: Normalize the recommendation_strength
+
+            model_type_cb = 'cb'  # Static parameter for CB
+            model_type_cf = 'cf'  # Static parameter for CF
+
+            scaler = MinMaxScaler()
+            self.recs_df[['recommendation_strengthCB_normalized',
+                          'recommendation_strengthCF_normalized']] = scaler.fit_transform(
+                self.recs_df[['recommendation_strengthCB', 'recommendation_strengthCF']]
+            )
+
+            # NOTICE: rounding also should make computations faster since cache is used to cache the params.
+            self.recs_df['recommendation_strengthCB_normalized'] = self.recs_df[
+                'recommendation_strengthCB_normalized'].round(2)
+            self.recs_df['recommendation_strengthCF_normalized'] = self.recs_df[
+                'recommendation_strengthCF_normalized'].round(2)
+
+            # Initialize a counter column to 0
+            # TODO: Normalize the recommendation_strength
+            self.iteration_counter = 0
         if self.fuzzy_expert_enabled:
 
-            self.point_to_save = '{}_{}'.format(belief_in_model_cb, belief_in_model_cf)
-            self.recs_df = self.load_recommendation_strength()
-
-            if self.recs_df is None:
-                # Getting the top N from Content-based filtering recommendations
-                cb_recs_df = self.cb_rec_model.recommend_items_cb(user_id=user_id, user_profiles=user_profiles,
-                                                                  items_to_ignore=items_to_ignore, verbose=verbose,
-                                                                  topn=topn).rename(
-                    columns={'recommendation_strength': 'recommendation_strengthCB'})
-
-                # Getting the top N from Collaborative filtering recommendations
-                cf_recs_df = (self.cf_rec_model.recommend_items_cf(user_id=user_id,
-                                                                   items_to_ignore=items_to_ignore, verbose=verbose,
-                                                                   topn=topn).rename(
-                    columns={'recommendation_strength': 'recommendation_strengthCF'}
-                ))
-
-                # Combining the results by post_id
-                self.recs_df = cb_recs_df.merge(cf_recs_df,
-                                                how='outer',
-                                                left_on='post_id',
-                                                right_on='post_id').fillna(0.0)
-
-                # TODO: We need to radically lower the number of the recommendations. PRIORITY: A+
-                # TODO: 1. Cut thw cases where recommendation_strength is 0
-                logging.debug("self.recs_df:")
-                logging.debug(self.recs_df)
-
-                recommender_inputs = []
-                # TODO: Normalize the recommendation_strength
-
-                model_type_cb = 'cb'  # Static parameter for CB
-                model_type_cf = 'cf'  # Static parameter for CF
-
-                scaler = MinMaxScaler()
-                self.recs_df[['recommendation_strengthCB_normalized',
-                              'recommendation_strengthCF_normalized']] = scaler.fit_transform(
-                    self.recs_df[['recommendation_strengthCB', 'recommendation_strengthCF']]
-                )
-
-                # NOTICE: rounding also should make computations faster since cache is used to cache the params.
-                self.recs_df['recommendation_strengthCB_normalized'] = self.recs_df[
-                    'recommendation_strengthCB_normalized'].round(2)
-                self.recs_df['recommendation_strengthCF_normalized'] = self.recs_df[
-                    'recommendation_strengthCF_normalized'].round(2)
-
-                # Initialize a counter column to 0
-                # TODO: Normalize the recommendation_strength
-                self.iteration_counter = 0
-
-                self.recs_df['recommendation_strengthHybrid'] = None
-                # Variant 3:
-                # Use a hybrid fuzzy system (evaluating both cf and cb at the same time)
-                self.recs_df['recommendation_strengthHybrid'] = self.recs_df.apply(
-                    lambda x: self.get_recommendation_strength_hybrid_with_logging(
-                        belief_in_model_cf,
-                        belief_in_model_cb,
-                        x['recommendation_strengthCF_normalized'],
-                        x['recommendation_strengthCB_normalized'],
-                        x['recommendation_strengthHybrid']
-                    ),
-                    axis=1
-                )
-
+            self.recs_df['recommendation_strengthHybrid'] = None
+            # Variant 3:
+            # Use a hybrid fuzzy system (evaluating both cf and cb at the same time)
+            self.recs_df['recommendation_strengthHybrid'] = self.recs_df.apply(
+                lambda x: self.get_recommendation_strength_hybrid_with_logging(
+                    belief_in_model_cf,
+                    belief_in_model_cb,
+                    x['recommendation_strengthCF_normalized'],
+                    x['recommendation_strengthCB_normalized'],
+                    x['recommendation_strengthHybrid']
+                ),
+                axis=1
+            )
+            # Variant 4: multiply with the cb and cf
+            # self.recs_df['recommendation_strengthHybrid'] = self.recs_df['recommendation_strengthCF_normalized'] * self.recs_df['recommendation_strengthCB_normalized'] * self.recs_df['recommendation_strengthHybrid']
         else:
             # Computing a hybrid recommendation score based on CF and CB scores
             # self.recs_df['recommendation_strengthHybrid']
             # = self.recs_df['recommendation_strengthCB'] * self.recs_df['recommendation_strengthCF']
-            self.recs_df['recommendation_strengthHybrid'] = (self.recs_df[
-                                                                 'recommendation_strengthCB'] * self.cb_ensemble_weight) \
-                                                            + (self.recs_df[
-                                                                   'recommendation_strengthCF'] * self.cf_ensemble_weight)
+            self.recs_df['recommendation_strengthHybrid'] = (self.recs_df['recommendation_strengthCB'] * self.cb_ensemble_weight
+                                                             + self.recs_df['recommendation_strengthCF'] * self.cf_ensemble_weight)
 
         # Sorting recommendations by hybrid score
         recommendations_df = self.recs_df.sort_values('recommendation_strengthHybrid', ascending=False).head(topn)
@@ -368,15 +365,10 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                       belief_in_interaction_strength_likes_global=None,
                                       belief_in_liked=None, belief_in_viewed=None,
                                       min_num_of_interactions: Optional[int] = 5,
-                                      topn_recommended=1000000000, use_fuzzy_expert=True,
+                                      topn_recommended=1000000000,
                                       num_of_interactions: Optional[int] = None,
                                       num_of_users: Optional[int] = None,
                                       checkpoint_file='recommender_checkpoint.pkl'):
-    if use_fuzzy_expert is True:
-        if (belief_in_model_cb is None or belief_in_model_cf is None or belief_in_liked is None
-                or belief_in_interaction_strength_views_global is None
-                or belief_in_interaction_strength_likes_global is None):
-            raise Exception("Missing fuzzy expert parameters")
 
     interaction_strength_iteration_counter = 0
 
@@ -424,21 +416,22 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     max_interactions_views = interactions_df_views.groupby(['user_id', 'interaction_type']).size().groupby(
         'interaction_type').max().iloc[0]
 
-    if use_fuzzy_expert:
-        recommendation_strength = get_interaction_strength('view',
-                                                           belief_in_interaction_strength_views_global,
-                                                           average_interactions_views, max_interactions_views)
-        logging.debug("recommendation_strength:")
-        logging.debug(recommendation_strength)
-        event_type_strength['LIKE'] = recommendation_strength
+    """
+    recommendation_strength = get_interaction_strength('view',
+                                                       belief_in_interaction_strength_views_global,
+                                                       average_interactions_views, max_interactions_views)
+    logging.debug("recommendation_strength:")
+    logging.debug(recommendation_strength)
+    event_type_strength['LIKE'] = recommendation_strength
 
-        recommendation_strength = get_interaction_strength('like',
-                                                           belief_in_interaction_strength_likes_global,
-                                                           average_interactions_likes, max_interactions_likes)
+    recommendation_strength = get_interaction_strength('like',
+                                                       belief_in_interaction_strength_likes_global,
+                                                       average_interactions_likes, max_interactions_likes)
 
-        logging.debug("recommendation_strength:")
-        logging.debug(recommendation_strength)
-        event_type_strength['VIEW'] = recommendation_strength
+    logging.debug("recommendation_strength:")
+    logging.debug(recommendation_strength)
+    event_type_strength['VIEW'] = recommendation_strength
+    """
 
     # NOTE: Originally recommendation_strength and _type => event_*
     interactions_df = pd.concat([interactions_df_likes, interactions_df_views])
@@ -462,55 +455,55 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                                                 right_on='user_id')
     print('# of interactions from users with at least 5 interactions: %d' % len(interactions_from_selected_users_df))
 
-    if use_fuzzy_expert:
+    @lru_cache(maxsize=16384)
+    def get_interaction_strength_with_logging(model_type, belief_in_model_views, belief_in_model_likes,
+                                              num_of_interactions_for_fuzzy, max_interactions_likes,
+                                              max_interactions_views):
+        nonlocal interaction_strength_iteration_counter
+        interaction_strength_iteration_counter += 1
+        model_type = model_type.lower()
 
-        @lru_cache(maxsize=16384)
-        def get_interaction_strength_with_logging(model_type, belief_in_model_views, belief_in_model_likes,
-                                                  num_of_interactions_for_fuzzy, max_interactions_likes,
-                                                  max_interactions_views):
-            nonlocal interaction_strength_iteration_counter
-            interaction_strength_iteration_counter += 1
-            model_type = model_type.lower()
+        logging.debug(f"Iteration count: {interaction_strength_iteration_counter}")
 
-            logging.debug(f"Iteration count: {interaction_strength_iteration_counter}")
+        if model_type == 'like':
+            return get_interaction_strength(model_type, belief_in_model_likes,
+                                            num_of_interactions_for_fuzzy, max_interactions_likes)
+        elif model_type == 'view':
+            return get_interaction_strength(model_type, belief_in_model_views,
+                                            num_of_interactions_for_fuzzy, max_interactions_views)
+        else:
+            raise ValueError("model_type must be 'like' or 'view'")
 
-            if model_type == 'like':
-                return get_interaction_strength(model_type, belief_in_model_likes,
-                                                num_of_interactions_for_fuzzy, max_interactions_likes)
-            elif model_type == 'view':
-                return get_interaction_strength(model_type, belief_in_model_views,
-                                                num_of_interactions_for_fuzzy, max_interactions_views)
-            else:
-                raise ValueError("model_type must be 'like' or 'view'")
+    # Calculate the count of each 'user_id'
+    user_id_counts = interactions_from_selected_users_df['user_id'].value_counts()
 
-        # Calculate the count of each 'user_id'
-        user_id_counts = interactions_from_selected_users_df['user_id'].value_counts()
+    # Map the count to a new column
+    interactions_from_selected_users_df['num_of_interactions'] = interactions_from_selected_users_df['user_id'].map(
+        user_id_counts)
 
-        # Map the count to a new column
-        interactions_from_selected_users_df['num_of_interactions'] = interactions_from_selected_users_df['user_id'].map(
-            user_id_counts)
+    logging.debug("interactions_from_selected_users_df after value counting:")
+    logging.debug(interactions_from_selected_users_df.head(10))
+    logging.debug(interactions_from_selected_users_df.columns.tolist())
 
-        logging.debug("interactions_from_selected_users_df after value counting:")
-        logging.debug(interactions_from_selected_users_df.head(10))
-        logging.debug(interactions_from_selected_users_df.columns.tolist())
+    users_interactions_count_df = interactions_df.groupby(['user_id', 'post_id']).size().groupby('user_id').size()
+    users_with_enough_interactions_df = \
+        users_interactions_count_df[users_interactions_count_df >= min_num_of_interactions].reset_index()[
+            ['user_id']]
 
-        users_interactions_count_df = interactions_df.groupby(['user_id', 'post_id']).size().groupby('user_id').size()
-        users_with_enough_interactions_df = \
-            users_interactions_count_df[users_interactions_count_df >= min_num_of_interactions].reset_index()[
-                ['user_id']]
-
-        # Now apply your function using the lambda expression
-        interactions_from_selected_users_df['recommendation_strength'] = interactions_from_selected_users_df.apply(
-            lambda x: get_interaction_strength_with_logging(
-                x['interaction_type'],
-                belief_in_viewed,
-                belief_in_liked,
-                x['num_of_interactions'],
-                max_interactions_likes,
-                max_interactions_views
-            ),
-            axis=1
-        )
+    # Now apply your function using the lambda expression
+    """
+    interactions_from_selected_users_df['recommendation_strength'] = interactions_from_selected_users_df.apply(
+        lambda x: get_interaction_strength_with_logging(
+            x['interaction_type'],
+            belief_in_viewed,
+            belief_in_liked,
+            x['num_of_interactions'],
+            max_interactions_likes,
+            max_interactions_views
+        ),
+        axis=1
+    )
+    """
 
     def smooth_user_preference(x):
         return math.log(1 + x, 2)
@@ -699,8 +692,11 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     logging.debug(cf_detailed_results_df.head(10))
 
     hybrid_recommender_model = HybridRecommender(content_based_recommender_model, cf_recommender_model, articles_df,
-                                                 cb_ensemble_weight=1.0, cf_ensemble_weight=100.0,
-                                                 fuzzy_expert=use_fuzzy_expert)
+                                                 fuzzy_expert=False)
+
+    hybrid_fuzzy_recommender_model = HybridRecommender(content_based_recommender_model, cf_recommender_model,
+                                                       articles_df,
+                                                       fuzzy_expert=True)
 
     hyper_parameters = {
         'belief_in_'
@@ -709,14 +705,18 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     print('Evaluating the Hybrid model...')
     hybrid_global_metrics, hybrid_detailed_results_df = model_evaluator.evaluate_model(hybrid_recommender_model,
                                                                                        user_profiles, topn_recommended)
-
-    print('Evaluating the best performing Hybrid model...')
-    hybrid_global_metrics, hybrid_detailed_results_df = model_evaluator.evaluate_model(hybrid_recommender_model,
-                                                                                       user_profiles, topn_recommended)
     print('\nGlobal metrics:\n%s' % hybrid_global_metrics)
     hybrid_detailed_results_df.head(10)
 
-    global_metrics_df = pd.DataFrame([cb_global_metrics, pop_global_metrics, cf_global_metrics, hybrid_global_metrics]) \
+    print('Evaluating the best performing Hybrid model...')
+    hybrid_fuzzy_global_metrics, hybrid_fuzzy_detailed_results_df = model_evaluator.evaluate_model(
+        hybrid_fuzzy_recommender_model,
+        user_profiles, topn_recommended)
+    print('\nGlobal metrics:\n%s' % hybrid_fuzzy_global_metrics)
+    hybrid_fuzzy_detailed_results_df.head(10)
+
+    global_metrics_df = pd.DataFrame(
+        [cb_global_metrics, pop_global_metrics, cf_global_metrics, hybrid_global_metrics, hybrid_fuzzy_global_metrics]) \
         .set_index('model_name')
     logging.debug(global_metrics_df)
 
@@ -745,24 +745,23 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                 logging.debug("inspect_interactions:")
                 logging.debug(_inspect_interactions)
         if tested_user_profile_id in user_profiles:
-            hybrid_recommender_model = hybrid_recommender_model.recommend_items_hybrid(tested_user_profile_id,
-                                                                                       user_profiles,
-                                                                                       belief_in_model_cb,
-                                                                                       belief_in_model_cf,
-                                                                                       topn=20,
-                                                                                       verbose=True)
+            hybrid_fuzzy_recommender_model = hybrid_fuzzy_recommender_model.recommend_items_hybrid(
+                tested_user_profile_id,
+                user_profiles,
+                belief_in_model_cb,
+                belief_in_model_cf,
+                topn=20,
+                verbose=True)
             logging.debug("Hybrid_recommender_model for the tested user profile {}:".format(tested_user_profile_id))
-            logging.debug(hybrid_recommender_model)
+            logging.debug(hybrid_fuzzy_recommender_model)
     except Exception as e:
         logging.error("Exception when trying to inspect interactions. Full exception: " + str(traceback.format_exc()))
 
-    if use_fuzzy_expert is False:
-        model_type = 'Hybrid'
-    else:
-        model_type = 'Fuzzy Hybrid'
+    recall_at_5_hybrid = global_metrics_df.loc['Hybrid']['recall@5']
+    recall_at_10_hybrid = global_metrics_df.loc['Hybrid']['recall@10']
 
-    recall_at_5_hybrid_or_fuzzy_hybrid = global_metrics_df.loc[model_type]['recall@5']
-    recall_at_10_hybrid_or_fuzzy_hybrid = global_metrics_df.loc[model_type]['recall@10']
+    recall_at_5_hybrid_or_fuzzy_hybrid = global_metrics_df.loc['Fuzzy Hybrid']['recall@5']
+    recall_at_10_hybrid_or_fuzzy_hybrid = global_metrics_df.loc['Fuzzy Hybrid']['recall@10']
 
     recall_at_5_cf = global_metrics_df.loc['Collaborative Filtering']['recall@5']
     recall_at_10_cf = global_metrics_df.loc['Collaborative Filtering']['recall@10']
@@ -773,7 +772,9 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     recall_at_5_pop = global_metrics_df.loc['Popularity']['recall@5']
     recall_at_10_pop = global_metrics_df.loc['Popularity']['recall@10']
 
-    return recall_at_5_hybrid_or_fuzzy_hybrid, recall_at_10_hybrid_or_fuzzy_hybrid, recall_at_5_cf, recall_at_10_cf, recall_at_5_cb, recall_at_10_cb, recall_at_5_pop, recall_at_10_pop
+    return (recall_at_5_hybrid, recall_at_10_hybrid, recall_at_5_hybrid_or_fuzzy_hybrid,
+            recall_at_10_hybrid_or_fuzzy_hybrid, recall_at_5_cf, recall_at_10_cf, recall_at_5_cb,
+            recall_at_10_cb, recall_at_5_pop, recall_at_10_pop)
 
 
 # Top-N accuracy metrics consts
@@ -883,7 +884,7 @@ class ModelEvaluator:
                                                                                                self.interactions_train_indexed_df),
                                                           topn=topn_recommended)
         else:
-            raise Exception("Unknown model name")
+            raise Exception("Unknown model name: " + model.get_model_name())
 
         logging.debug("Model name: %s" % model.get_model_name())
         logging.debug("recommended df:")
