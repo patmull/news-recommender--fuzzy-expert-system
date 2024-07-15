@@ -49,7 +49,8 @@ def hyperparameter_tuning_fuzzy_expert_grid_search():
                                     belief_in_interaction_strength_views_global=belief_in_interaction_strength_views_global,
                                     belief_in_interaction_strength_likes_global=belief_in_interaction_strength_likes_global,
                                     belief_in_liked=belief_in_liked,
-                                    belief_in_viewed=belief_in_viewed)
+                                    belief_in_viewed=belief_in_viewed,
+                                    fuzzy_interactions_global=True)
 
                                 with open(path_to_results_csv.as_posix(), "a") as f:
                                     logging.info("Results:")
@@ -91,7 +92,8 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
         with open(path_to_results_csv.as_posix(), "r") as f:
             next(f)  # Skip header
             for line in f:
-                existing_rows.add(tuple(int(x) if x else 0 for x in line.strip().split(',')[:6]))
+                # existing_rows.add(tuple(int(x) if x else 0 for x in line.strip().split(',')[:6]))
+                existing_rows.add(tuple(int(x) if x else 0 for x in line.strip().split(',')[:2]))
     except FileNotFoundError:
         # If file does not exist, it will be created when writing the first result
         pass
@@ -107,7 +109,8 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
         )
 
         if new_row not in existing_rows:  # Check if the combination is unique
-            (recall_at_5_hybrid, recall_at_10_hybrid, recall_at_5_hybrid_or_fuzzy_hybrid, recall_at_10_hybrid_or_fuzzy_hybrid, recall_at_5_cf, recall_at_10_cf,
+            (recall_at_5_hybrid, recall_at_10_hybrid, recall_at_5_hybrid_or_fuzzy_hybrid,
+             recall_at_10_hybrid_or_fuzzy_hybrid, recall_at_5_cf, recall_at_10_cf,
              recall_at_5_cb, recall_at_10_cb, recall_at_5_pop, recall_at_10_pop) \
                 = init_user_interaction_recommender(
                 belief_in_model_cb=new_row[0],
@@ -115,7 +118,10 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
                 belief_in_interaction_strength_views_global=new_row[2],
                 belief_in_interaction_strength_likes_global=new_row[3],
                 belief_in_liked=new_row[4],
-                belief_in_viewed=new_row[5])
+                belief_in_viewed=new_row[5],
+                fuzzy_interactions_global=True,
+                fuzzy_interactions_user=True
+            )
 
             with open(path_to_results_csv.as_posix(), "a") as f:
                 logging.info("Results for iteration with: %s", new_row)
@@ -130,13 +136,16 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
                 logging.info("recall_at_5_pop: {}".format(recall_at_5_pop))
                 logging.info("recall_at_10_pop: {}".format(recall_at_10_pop))
 
-                f.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (
-                    new_row[0], new_row[1], new_row[2], new_row[3], new_row[4], new_row[5],
-                    recall_at_5_hybrid, recall_at_10_hybrid,
-                    recall_at_5_hybrid_or_fuzzy_hybrid, recall_at_10_hybrid_or_fuzzy_hybrid,
-                    recall_at_5_cf, recall_at_10_cf, recall_at_5_cb, recall_at_10_cb,
-                    recall_at_5_pop, recall_at_10_pop
-                ))
+                f.write(
+                    "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (
+                        new_row[0], new_row[1],
+                        new_row[2], new_row[3],
+                        new_row[4], new_row[5],
+                        recall_at_5_hybrid, recall_at_10_hybrid,
+                        recall_at_5_hybrid_or_fuzzy_hybrid, recall_at_10_hybrid_or_fuzzy_hybrid,
+                        recall_at_5_cf, recall_at_10_cf, recall_at_5_cb, recall_at_10_cb,
+                        recall_at_5_pop, recall_at_10_pop
+                    ))
 
             existing_rows.add(new_row)  # Add the new row to existing rows set
 

@@ -19,7 +19,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
 from src.news_recommender_core_1_1.database import load_user_thumbs, load_user_view_histories, load_posts_df
-from src.news_recommender_core_1_1.expert_system import get_model_strength, get_interaction_strength, \
+from src.news_recommender_core_1_1.expert_system import get_interaction_strength, \
     get_recommendation_strength_hybrid
 from src.prefillers.preprocessing.stopwords_loading import load_cz_stopwords
 
@@ -44,15 +44,35 @@ class TfIdf:
         # ignoring stopwords
         vectorizer = TfidfVectorizer(
             analyzer='word',
-            ngram_range=(1, 2),
-            min_df=0.003,
-            max_df=0.5,
-            max_features=5000,
+            # ngram_range=(1, 2),
+            # min_df=0.003,
+            # max_df=0.5,
+            # max_features=5000,
             stop_words=stopwords_list
         )
 
+        self.articles_df['trigrams_short_text'] = self.articles_df['trigrams_short_text'].mask(
+            self.articles_df['trigrams_short_text'].isna(),
+            self.articles_df['all_features_preprocessed']
+        )
+
+        self.articles_df['trigrams_full_text'] = self.articles_df['trigrams_full_text'].mask(
+            self.articles_df['trigrams_full_text'].isna(),
+            self.articles_df['all_features_preprocessed']
+        )
+        # to prevent both columns same
+        self.articles_df['trigrams_full_text'] = self.articles_df.apply(
+            lambda row: '' if row['trigrams_full_text'] == row['trigrams_short_text'] else row['trigrams_full_text'],
+            axis=1)
         _item_ids = self.articles_df['post_id'].tolist()
-        _tfidf_matrix = vectorizer.fit_transform(self.articles_df['title'] + " " + self.articles_df['body'])
+        _tfidf_matrix = vectorizer.fit_transform(  # self.articles_df['title']
+            # + " " +
+            # self.articles_df['excerpt']
+            # + " " +
+            # self.articles_df['body']
+            # self.articles_df['all_features_preprocessed']
+            self.articles_df['trigrams_short_text'] + " " + self.articles_df['trigrams_full_text']
+        )
         _tfidf_feature_names = vectorizer.get_feature_names_out()
         return _tfidf_matrix, _tfidf_feature_names, _item_ids
 
@@ -247,11 +267,16 @@ class HybridRecommender:
     def get_model_name(self):
         return self.model_name
 
+    def load_saved_results(self, belief_in_model_cb, belief_in_model_cf):
+        self.point_to_save = '{}_{}'.format(belief_in_model_cb, belief_in_model_cf)
+        recs_df = self.load_recommendation_strength()
+        return recs_df
+
     def recommend_items_hybrid(self, user_id, user_profiles, belief_in_model_cb, belief_in_model_cf, items_to_ignore=[],
                                topn=10, verbose=False):
 
-        self.point_to_save = '{}_{}'.format(belief_in_model_cb, belief_in_model_cf)
-        self.recs_df = self.load_recommendation_strength()
+        # For avoiding unnecessary computations
+        self.recs_df = self.load_saved_results(belief_in_model_cb, belief_in_model_cf)
 
         if self.recs_df is None:
             # Getting the top N from Content-based filtering recommendations
@@ -320,8 +345,9 @@ class HybridRecommender:
             # Computing a hybrid recommendation score based on CF and CB scores
             # self.recs_df['recommendation_strengthHybrid']
             # = self.recs_df['recommendation_strengthCB'] * self.recs_df['recommendation_strengthCF']
-            self.recs_df['recommendation_strengthHybrid'] = (self.recs_df['recommendation_strengthCB'] * self.cb_ensemble_weight
-                                                             + self.recs_df['recommendation_strengthCF'] * self.cf_ensemble_weight)
+            self.recs_df['recommendation_strengthHybrid'] = (
+                        self.recs_df['recommendation_strengthCB'] * self.cb_ensemble_weight
+                        + self.recs_df['recommendation_strengthCF'] * self.cf_ensemble_weight)
 
         # Sorting recommendations by hybrid score
         recommendations_df = self.recs_df.sort_values('recommendation_strengthHybrid', ascending=False).head(topn)
@@ -368,8 +394,9 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                       topn_recommended=1000000000,
                                       num_of_interactions: Optional[int] = None,
                                       num_of_users: Optional[int] = None,
-                                      checkpoint_file='recommender_checkpoint.pkl'):
-
+                                      checkpoint_file='recommender_checkpoint.pkl',
+                                      fuzzy_interactions_global=False,
+                                      fuzzy_interactions_user=False):
     interaction_strength_iteration_counter = 0
 
     user_thumbs = load_user_thumbs()
@@ -381,58 +408,63 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     interactions_df_views = pd.DataFrame.from_dict(user_views, orient='columns')
     interactions_df_views['interaction_type'] = 'VIEW'
 
-    # TODO: This will be determined by the fuzzy methods.
-    # possible variables:
-    # number of interactions by the user
-    # level of a belief in a given interaction
+    if fuzzy_interactions_global is False:
+        # Original implementation
+        event_type_strength = {
+            'VIEW': 1.0,
+            'LIKE': 2.0,
+        }
+    else:
+        # Our modification using the fuzzy system
+        event_type_strength = {
+            'VIEW': 0.0,
+            'LIKE': 0.0,
+        }
+        logging.debug("interactions_df_views:")
+        logging.debug(interactions_df_views)
+        logging.debug("interactions_df_likes:")
+        logging.debug(interactions_df_likes)
 
-    event_type_strength = {
-        'VIEW': 1.0,
-        'LIKE': 2.0,
-    }
+        # TODO: Replace this with the average num. of interactions
+        num_of_interaction_likes = len(interactions_df_likes)
+        num_of_interaction_views = len(interactions_df_views)
 
-    logging.debug("interactions_df_views:")
-    logging.debug(interactions_df_views)
-    logging.debug("interactions_df_likes:")
-    logging.debug(interactions_df_likes)
+        average_interactions_likes = \
+        interactions_df_likes.groupby('interaction_type')['user_id'].value_counts().groupby(
+            'interaction_type').mean().iloc[0]
+        average_interactions_views = \
+        interactions_df_views.groupby('interaction_type')['user_id'].value_counts().groupby(
+            'interaction_type').mean().iloc[0]
+
+        max_interactions_likes = interactions_df_likes.groupby(['user_id', 'interaction_type']).size().groupby(
+            'interaction_type').max().iloc[0]
+        max_interactions_views = interactions_df_views.groupby(['user_id', 'interaction_type']).size().groupby(
+            'interaction_type').max().iloc[0]
+
+        logging.debug("descriptive stats:")
+        logging.debug(interactions_df_likes.groupby('interaction_type')['user_id'].value_counts())
+        logging.debug(interactions_df_views.groupby('interaction_type')['user_id'].value_counts())
+
+        recommendation_strength = get_interaction_strength('view',
+                                                           belief_in_interaction_strength_views_global,
+                                                           average_interactions_views, max_interactions_views)
+        logging.debug("recommendation_strength:")
+        logging.debug(recommendation_strength)
+        event_type_strength['LIKE'] = recommendation_strength
+
+        recommendation_strength = get_interaction_strength('like',
+                                                           belief_in_interaction_strength_likes_global,
+                                                           average_interactions_likes, max_interactions_likes)
+
+        logging.debug("recommendation_strength:")
+        logging.debug(recommendation_strength)
+        event_type_strength['VIEW'] = recommendation_strength
 
     tested_user_profile_id = random.choice(interactions_df_likes['user_id'].values.tolist())
     logging.info("""Tested user profile id: {}""".format(tested_user_profile_id))
 
     if tested_user_profile_id in interactions_df_views['user_id']:
         logging.info("""Tested user profile id: {}""".format(tested_user_profile_id))
-
-    # TODO: Replace this with the average num. of interactions
-    num_of_interaction_likes = len(interactions_df_likes)
-    num_of_interaction_views = len(interactions_df_views)
-
-    average_interactions_likes = interactions_df_likes.groupby('interaction_type')['user_id'].value_counts().groupby(
-        'interaction_type').mean().iloc[0]
-    average_interactions_views = interactions_df_views.groupby('interaction_type')['user_id'].value_counts().groupby(
-        'interaction_type').mean().iloc[0]
-
-    max_interactions_likes = interactions_df_likes.groupby(['user_id', 'interaction_type']).size().groupby(
-        'interaction_type').max().iloc[0]
-    max_interactions_views = interactions_df_views.groupby(['user_id', 'interaction_type']).size().groupby(
-        'interaction_type').max().iloc[0]
-
-    """
-    recommendation_strength = get_interaction_strength('view',
-                                                       belief_in_interaction_strength_views_global,
-                                                       average_interactions_views, max_interactions_views)
-    logging.debug("recommendation_strength:")
-    logging.debug(recommendation_strength)
-    event_type_strength['LIKE'] = recommendation_strength
-
-    recommendation_strength = get_interaction_strength('like',
-                                                       belief_in_interaction_strength_likes_global,
-                                                       average_interactions_likes, max_interactions_likes)
-
-    logging.debug("recommendation_strength:")
-    logging.debug(recommendation_strength)
-    event_type_strength['VIEW'] = recommendation_strength
-    """
-
     # NOTE: Originally recommendation_strength and _type => event_*
     interactions_df = pd.concat([interactions_df_likes, interactions_df_views])
     interactions_df['recommendation_strength'] = (interactions_df['interaction_type']
@@ -485,25 +517,30 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     logging.debug(interactions_from_selected_users_df.head(10))
     logging.debug(interactions_from_selected_users_df.columns.tolist())
 
-    users_interactions_count_df = interactions_df.groupby(['user_id', 'post_id']).size().groupby('user_id').size()
-    users_with_enough_interactions_df = \
-        users_interactions_count_df[users_interactions_count_df >= min_num_of_interactions].reset_index()[
-            ['user_id']]
-
-    # Now apply your function using the lambda expression
-    """
-    interactions_from_selected_users_df['recommendation_strength'] = interactions_from_selected_users_df.apply(
-        lambda x: get_interaction_strength_with_logging(
-            x['interaction_type'],
-            belief_in_viewed,
-            belief_in_liked,
-            x['num_of_interactions'],
-            max_interactions_likes,
-            max_interactions_views
-        ),
-        axis=1
-    )
-    """
+    if fuzzy_interactions_user:
+        users_interactions_count_df = interactions_from_selected_users_df.groupby(
+            ['user_id', 'post_id']).size().groupby('user_id').size()
+        users_with_enough_interactions_df = \
+            users_interactions_count_df[users_interactions_count_df >= min_num_of_interactions].reset_index()[
+                ['user_id']]
+        interactions_from_selected_users_df = pd.merge(
+            interactions_from_selected_users_df,
+            users_with_enough_interactions_df[['user_id']],
+            on='user_id',
+            how='inner'
+        )
+        # Now apply your function using the lambda expression
+        interactions_from_selected_users_df['recommendation_strength'] = interactions_from_selected_users_df.apply(
+            lambda x: get_interaction_strength_with_logging(
+                x['interaction_type'],
+                belief_in_viewed,
+                belief_in_liked,
+                x['num_of_interactions'],
+                max_interactions_likes,
+                max_interactions_views
+            ),
+            axis=1
+        )
 
     def smooth_user_preference(x):
         return math.log(1 + x, 2)
@@ -568,6 +605,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     interactions_full_indexed_df = interactions_full_df.set_index('user_id')
     interactions_train_indexed_df = interactions_train_df.set_index('user_id')
     interactions_test_indexed_df = interactions_test_df.set_index('user_id')
+    interactions_validation_indexed_df = interactions_validation_df.set_index('user_id')
 
     print("Loading posts...")
     articles_df = load_posts_df()
@@ -577,7 +615,8 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
 
     print("Creating df of posts.")
     model_evaluator = ModelEvaluator(interactions_full_indexed_df, interactions_train_indexed_df,
-                                     interactions_test_indexed_df, articles_df, belief_in_model_cb, belief_in_model_cf)
+                                     interactions_test_indexed_df, interactions_validation_indexed_df,
+                                     articles_df, belief_in_model_cb, belief_in_model_cf)
     print("created model evaluator")
 
     # Computes the most popular items
@@ -586,7 +625,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     print(item_popularity_df.head(10))
 
     # Create model
-    popularity_model = PopularityRecommender(item_popularity_df, articles_df)
+    popularity_model = PopularityRecommender(interactions_train_df, articles_df)
     print("created popularity model")
 
     logging.info("Building user profiles:")
@@ -822,10 +861,12 @@ class CFRecommender:
 class ModelEvaluator:
 
     def __init__(self, interactions_full_indexed_df, interactions_train_indexed_df, interactions_test_indexed_df,
+                 interactions_validation_indexed_df,
                  articles_df, belief_in_model_cb, belief_in_model_cf):
         self.interactions_full_indexed_df = interactions_full_indexed_df
         self.interactions_train_indexed_df = interactions_train_indexed_df
         self.interactions_test_indexed_df = interactions_test_indexed_df
+        self.interactions_validation_indexed_df = interactions_validation_indexed_df
         self.belief_in_model_cb = belief_in_model_cb
         self.belief_in_model_cf = belief_in_model_cf
         self.articles_df = articles_df
@@ -848,7 +889,9 @@ class ModelEvaluator:
         hit = int(index in range(0, topn))
         return hit, index
 
-    def evaluate_model_for_user(self, model, user_id, user_profiles, topn_recommended=1000000000):
+    def evaluate_model_for_user(self, model, user_id, user_profiles,
+                                interactions_evaluation_indexed_df,  # TODO: This does not work as expected.
+                                topn_recommended=1000000000):
         # Getting the items in test set
         interacted_values_test_set = self.interactions_test_indexed_df.loc[user_id]
         if type(interacted_values_test_set['post_id']) == pd.Series:
@@ -926,13 +969,20 @@ class ModelEvaluator:
                           'recall@10': recall_at_10}
         return person_metrics
 
-    def evaluate_model(self, model, user_profiles, topn_recommended=1000000000):
+    def evaluate_model(self, model, user_profiles, topn_recommended=1000000000, evaluation_set='test'):
         # print('Running evaluation for users')
         people_metrics = []
-        for idx, user_id in enumerate(list(self.interactions_test_indexed_df.index.unique().values)):
+        evaluation_df = pd.DataFrame()
+        if evaluation_set == 'test':
+            evaluation_df = self.interactions_test_indexed_df
+        elif evaluation_set == 'validation':
+            evaluation_df = self.interactions_validation_indexed_df
+
+        for idx, user_id in enumerate(list(evaluation_df.index.unique().values)):
             # if idx % 100 == 0 and idx > 0:
             #    print('%d users processed' % idx)
-            person_metrics = self.evaluate_model_for_user(model, user_id, user_profiles, topn_recommended)
+            person_metrics = self.evaluate_model_for_user(model, user_id, user_profiles, evaluation_df,
+                                                          topn_recommended)
             person_metrics['_user_id'] = user_id
             people_metrics.append(person_metrics)
             print('%d users processed' % idx)
@@ -945,26 +995,30 @@ class ModelEvaluator:
         global_recall_at_10 = detailed_results_df['hits@10_count'].sum() / float(
             detailed_results_df['interacted_count'].sum())
 
-        global_metrics = {'model_name': model.get_model_name(),
-                          'recall@5': global_recall_at_5,
-                          'recall@10': global_recall_at_10}
+        global_metrics = {
+            'set': evaluation_set,
+            'model_name': model.get_model_name(),
+            'recall@5': global_recall_at_5,
+            'recall@10': global_recall_at_10
+        }
+
         return global_metrics, detailed_results_df
 
 
 class PopularityRecommender:
     MODEL_NAME = 'Popularity'
 
-    def __init__(self, popularity_df, items_df=None):
-        self.popularity_df = popularity_df
+    def __init__(self, interactions_df, items_df=None):
+        # Calculate item popularity based only on training data
+        self.popularity_df = (interactions_df.groupby('post_id')['recommendation_strength']
+                              .sum().sort_values(ascending=False).reset_index())
         self.items_df = items_df
 
     def get_model_name(self):
         return self.MODEL_NAME
 
-    def recommend_items_popularity(self, user_id, items_to_ignore=None, topn=10, verbose=False):
+    def recommend_items_popularity(self, user_id, items_to_ignore=[], topn=10, verbose=False):
         # Recommend the more popular items that the user hasn't seen yet.
-        if items_to_ignore is None:
-            items_to_ignore = []
         recommendations_df = self.popularity_df[~self.popularity_df['post_id'].isin(items_to_ignore)] \
             .sort_values('recommendation_strength', ascending=False) \
             .head(topn)
@@ -977,8 +1031,5 @@ class PopularityRecommender:
                                                           left_on='post_id',
                                                           right_on='post_id')[
                 ['recommendation_strength', 'post_id', 'title', 'slug']]
-
-        logging.debug("recommendations_df:")
-        logging.debug(recommendations_df.head(10))
 
         return recommendations_df

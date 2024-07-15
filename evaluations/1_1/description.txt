@@ -1,0 +1,40 @@
+We fixed the major flaw of the original implementation which included all the data to the popularity model creation, so the recall was exaggerated and too high.
+
+Using the trapezoid and gaussian membership function did not change the results comparing to using the triangular membership functions.
+
+If the content-based recommendations using the TF-IDF with article title and body are not performing particularly well, the recall of fuzzy hybrid methods is stabilized
+around the 17.5%, while the hybrid method with only the summation of the CB and CF recommendation strengths varies from 26.5% in the best result set to only about 8.5% in the worst performing set
+from the evaluated articles. The fuzzy method is not helping to achieve a significantly better recommendations if the CB and CF methods are already performing poorly, however shows some promise to improve the results in overall.
+It demonstrate the interesting ability to stabilize the system and provide slightly better recommendations on average, while the original hybrid approach shows fluctuations, mainly in the sensitive area of recall @5 from only about 8% to 30% recall @5, while the fuzzy system holds the stable results between around 17% to 19% for all random draws from the dateset.
+
+In the next steps, we tried to put also the excerpt besides the article title and body to enhance the CB recommendations, thus potentially the hybrid approaches. This even slightly dropped the recall at 5 to 0.18.
+
+We found the best fuzzy hybrid model results with 19.39% recall @5 (see results_random_search_pop_fuzzy_global_and_user.csv). This used our pre-processing pipeline with czech trigrams using the Czech morphological library Majka as well as other pre-processing steps in our designed pre-processing pipeline.
+
+Thus, we tried to lower the number of words used and focused only on combination of the title and excerpt of the article which should contain the higher density of significant words compared to also using the article body.
+However, this also even dropped the performance to 13.9%.
+
+If take change the original implementation of the TfidfVectorizer:
+
+#ngram_range=(1, 2),
+            #min_df=0.003,
+            #max_df=0.5,
+            #max_features=5000,
+
+And rather use the original parameters, it does slightly improve the CB method on the title and excerpt combination to 19.09% recall.
+If we add back the body (and leave the default parameters), we get around 20% or recall @5. Only title or only excerpt are performing 20.6%, 14.5% respectively. Only body (and default parameters) 19.3%.
+
+However, none of these combinations of textual features significantly improved the recommendations, thus we rather tried to use our pre-processed pipeline designed specifically for the Czech texts. However, the results were similar with around 19.6% recall.
+
+The interaction strength is the number between 0.0 and 10.0, and it is based on the belief parameters (possibly set by human or fine-tuned by the optimization methods) and the number of ratings by all users across all dataset. Most of the parameters
+choices for the fuzzy system improved the performance from 40.6% in the original popularity approach (in the modified version with fixed data leak from the test set resulting in overestimated recommendation performance) to ~42.7% recall @5 and recall @10 stayed equivalent to the original approach in the testing set evaluation (43.03%).
+
+The best performing model of all models was when we utilized fuzzy method also for the individual user and his number of interactions. On average, it provided greater recommendations and with the
+random search parameters, we were able to improve the performance of the popularity based model to 43.03%. This popularity approach we the user-centric approach based on the number of interactions of the individual users. The popularity method based on the "global" average interactions of all users was performing slightly worse with best found recall at 5 40.9% (almost equivalent results to the original method with small fluctuations from the smallest observed 39.09% recall at 5).
+
+
+results_random_search_pop_fuzzy_global_and_user.csv
+results_random_search_pop_fuzzy_global_interactions.csv
+results_random_search_pop_gaussian_1.csv
+results_random_search_pop_original_fixed.csv
+results_random_search_pop_trapezoid.csv
