@@ -50,7 +50,10 @@ def hyperparameter_tuning_fuzzy_expert_grid_search():
                                     belief_in_interaction_strength_likes_global=belief_in_interaction_strength_likes_global,
                                     belief_in_liked=belief_in_liked,
                                     belief_in_viewed=belief_in_viewed,
-                                    fuzzy_interactions_global=True)
+                                    fuzzy_interactions_global=False,
+                                    fuzzy_interactions_user=False,
+                                    fuzzy_ensemble=False
+                                )
 
                                 with open(path_to_results_csv.as_posix(), "a") as f:
                                     logging.info("Results:")
@@ -110,8 +113,8 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
 
         if new_row not in existing_rows:  # Check if the combination is unique
             (recall_at_5_hybrid, recall_at_10_hybrid, recall_at_5_hybrid_or_fuzzy_hybrid,
-             recall_at_10_hybrid_or_fuzzy_hybrid, recall_at_5_cf, recall_at_10_cf,
-             recall_at_5_cb, recall_at_10_cb, recall_at_5_pop, recall_at_10_pop) \
+             recall_at_10_hybrid_or_fuzzy_hybrid, recall_at_5_hybrid_bayesian, recall_at_10_hybrid_bayesian,
+             recall_at_5_cf, recall_at_10_cf, recall_at_5_cb, recall_at_10_cb, recall_at_5_pop, recall_at_10_pop) \
                 = init_user_interaction_recommender(
                 belief_in_model_cb=new_row[0],
                 belief_in_model_cf=new_row[1],
@@ -119,8 +122,9 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
                 belief_in_interaction_strength_likes_global=new_row[3],
                 belief_in_liked=new_row[4],
                 belief_in_viewed=new_row[5],
-                fuzzy_interactions_global=True,
-                fuzzy_interactions_user=True
+                fuzzy_interactions_global=False,
+                fuzzy_interactions_user=False,
+                fuzzy_ensemble=False
             )
 
             with open(path_to_results_csv.as_posix(), "a") as f:
@@ -129,6 +133,8 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
                 logging.info("recall_at_10_hybrid: {}".format(recall_at_10_hybrid_or_fuzzy_hybrid))
                 logging.info("recall_at_5_hybrid_or_fuzzy_hybrid: {}".format(recall_at_5_hybrid_or_fuzzy_hybrid))
                 logging.info("recall_at_10_hybrid_or_fuzzy_hybrid: {}".format(recall_at_10_hybrid_or_fuzzy_hybrid))
+                logging.info("recall_at_5_hybrid_bayesian: {}".format(recall_at_5_hybrid_bayesian))
+                logging.info("recall_at_10_hybrid_bayesian: {}".format(recall_at_10_hybrid_bayesian))
                 logging.info("recall_at_5_cf: {}".format(recall_at_5_cf))
                 logging.info("recall_at_10_cf: {}".format(recall_at_10_cf))
                 logging.info("recall_at_5_cb: {}".format(recall_at_5_cb))
@@ -137,12 +143,13 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
                 logging.info("recall_at_10_pop: {}".format(recall_at_10_pop))
 
                 f.write(
-                    "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (
+                    "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (
                         new_row[0], new_row[1],
                         new_row[2], new_row[3],
                         new_row[4], new_row[5],
                         recall_at_5_hybrid, recall_at_10_hybrid,
                         recall_at_5_hybrid_or_fuzzy_hybrid, recall_at_10_hybrid_or_fuzzy_hybrid,
+                        recall_at_5_hybrid_bayesian, recall_at_10_hybrid_bayesian,
                         recall_at_5_cf, recall_at_10_cf, recall_at_5_cb, recall_at_10_cb,
                         recall_at_5_pop, recall_at_10_pop
                     ))

@@ -1,0 +1,45 @@
+# with fuzzy interaction strength
+{'set': 'test', 'model_name': 'Popularity', 'recall@5': 0.40606060606060607, 'recall@10': 0.4303030303030303}
+
+{'set': 'test', 'model_name': 'Content-Based', 'recall@5': 0.19696969696969696, 'recall@10': 0.22727272727272727}
+{'set': 'test', 'model_name': 'Content-Based', 'recall@5': 0.19696969696969696, 'recall@10': 0.22727272727272727}
+{'set': 'test', 'model_name': 'Content-Based', 'recall@5': 0.19696969696969696, 'recall@10': 0.22727272727272727}
+{'set': 'test', 'model_name': 'Content-Based', 'recall@5': 0.19696969696969696, 'recall@10': 0.22727272727272727}
+
+
+{'set': 'test', 'model_name': 'Collaborative Filtering', 'recall@5': 0.39090909090909093, 'recall@10': 0.42727272727272725}
+{'set': 'test', 'model_name': 'Collaborative Filtering', 'recall@5': 0.4090909090909091, 'recall@10': 0.4303030303030303}
+{'set': 'test', 'model_name': 'Collaborative Filtering', 'recall@5': 0.4090909090909091, 'recall@10': 0.4303030303030303}
+{'set': 'test', 'model_name': 'Collaborative Filtering', 'recall@5': 0.40606060606060607, 'recall@10': 0.4303030303030303}
+{'set': 'test', 'model_name': 'Collaborative Filtering', 'recall@5': 0.40606060606060607, 'recall@10': 0.4303030303030303}
+
+
+{'set': 'test', 'model_name': 'Hybrid', 'recall@5': 0.4052132701421801, 'recall@10': 0.5118483412322274}
+{'set': 'test', 'model_name': 'Hybrid', 'recall@5': 0.4028436018957346, 'recall@10': 0.5118483412322274}
+
+
+{'set': 'test', 'model_name': 'Bayesian Hybrid', 'recall@5': 0.4075829383886256, 'recall@10': 0.514218009478673}
+
+{'set': 'test', 'model_name': 'Bayesian Hybrid', 'recall@5': 0.25757575757575757, 'recall@10': 0.47878787878787876}  with fuzzy expert
+
+# after new rules added
+{'set': 'test', 'model_name': 'Fuzzy Bayesian Hybrid Trapezoid', 'recall@5': 0.25757575757575757, 'recall@10': 0.47878787878787876}
+
+{'set': 'test', 'model_name': 'DeepHybridRecommender', 'recall@5': 0.3009478672985782, 'recall@10': 0.34360189573459715}
+
+{'set': 'test', 'model_name': 'DeepHybridRecommender', 'recall@5': 0.3033175355450237, 'recall@10': 0.33649289099526064}
+
+
+{'set': 'test', 'model_name': 'AdaptiveWeightHybridRecommender', 'recall@5': 0.4075829383886256, 'recall@10': 0.514218009478673}
+
+
+
+### Popularity without fuzzy interactions ###
+{'set': 'test', 'model_name': 'Popularity', 'recall@5': 0.40606060606060607, 'recall@10': 0.4303030303030303}
+{'set': 'test', 'model_name': 'Popularity', 'recall@5': 0.40606060606060607, 'recall@10': 0.4303030303030303}
+{'set': 'test', 'model_name': 'Popularity', 'recall@5': 0.40606060606060607, 'recall@10': 0.4303030303030303}
+
+# Bayes without min-max scaler
+# Fuzzy Bayes without min-max scaler
+
+# TODO: # Try with recall @20

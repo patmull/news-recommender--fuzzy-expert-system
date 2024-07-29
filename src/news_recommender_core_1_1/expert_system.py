@@ -165,7 +165,6 @@ def plot_fuzzy(TLV, TLV_2, O, titles, x_labels, y_labels):
     plt.show()
 
 
-
 def plot_membership_functions(LV1, LV2, LV3, LV4, O):
     fig, ax = plt.subplots(2, 2, figsize=(12, 8))
     LV1.draw(ax=ax[0][0])
@@ -175,6 +174,7 @@ def plot_membership_functions(LV1, LV2, LV3, LV4, O):
     O.draw(ax=ax[1][2])
     plt.tight_layout()
     plt.show()
+
 
 def plot_output_surface(fs, input_var1, input_var2, output_var):
     x = np.linspace(input_var1.get_universe_of_discourse()[0], input_var1.get_universe_of_discourse()[1], 50)
@@ -210,113 +210,79 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
 
     ### Triangle ###
     """    
-    TLV = AutoTriangle(3,
-                       terms=['small', 'medium', 'big'],
-                       universe_of_discourse=[0, 10])
+    TLV = AutoTriangle(5,
+                       terms=['very_small', 'small', 'medium', 'big', 'very_big'],
+                       universe_of_discourse=[0.0, 1.0])
     FS_recommendation_strength_hybrid.add_linguistic_variable("belief_in_cf_model", TLV)
 
-    TLV = AutoTriangle(3,
-                       terms=['small', 'medium', 'big'],
-                       universe_of_discourse=[0, 10])
+    TLV = AutoTriangle(5,
+                       terms=['very_small', 'small', 'medium', 'big', 'very_big'],
+                       universe_of_discourse=[0.0, 1.0])
     FS_recommendation_strength_hybrid.add_linguistic_variable("belief_in_cb_model", TLV)
 
-    output_low_upper_bound = 0.75
-    output_medium_lower_bound = 0.6
-    output_medium_center = output_low_upper_bound
-    output_medium_upper_bound = 0.9
-    output_high_upper_bound = 1.0
 
-    # TODO: Replace the constant of the U with the number of the articles in the dataset
+    TLV = AutoTriangle(5,
+                       terms=['very_small', 'small', 'medium', 'big', 'very_big'],
+                       universe_of_discourse=[0.0, 1.0])
+    FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cf", TLV)
 
-    I21 = TriangleFuzzySet(0, 0, output_low_upper_bound, term="small")
-    I22 = TriangleFuzzySet(output_medium_lower_bound, output_medium_center,
-                           output_medium_upper_bound, term="medium")
-    I23 = TriangleFuzzySet(output_medium_center, output_high_upper_bound,
-                           output_high_upper_bound, term="big")
+    TLV = AutoTriangle(5,
+                       terms=['very_small', 'small', 'medium', 'big', 'very_big'],
+                       universe_of_discourse=[0.0, 1.0])
+    FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cb", TLV)
 
-    TLV_2 = LinguisticVariable([I21, I22, I23], universe_of_discourse=[0.0, 1.0])
-    FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cf", TLV_2)
+    # Output variable (model strength)
+    O1 = TriangleFuzzySet(0.0, 0.1, 0.2, term="very_small")
+    O2 = TriangleFuzzySet(0.1,0.3, 0.5,  term="small")
+    O3 = TriangleFuzzySet(0.25, 0.5, 0.75, term="medium")
+    O4 = TriangleFuzzySet(0.7,0.8, 0.9, term="big")
+    O5 = TriangleFuzzySet(0.85, 0.9, 1.0, term="very_big")
 
-    TLV_2 = LinguisticVariable([I21, I22, I23], universe_of_discourse=[0.0, 1.0])
-    FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cb", TLV_2)
-
-    # For recommendation coefficients (CF and CB)
-    output_low_upper_bound = 0.6
-    output_medium_lower_bound = 0.5
-    output_medium_center = 0.75
-    output_medium_upper_bound = 0.9
-    output_high_lower_bound = 0.8
-    output_high_upper_bound = 1.0
-    
-    I21 = TriangleFuzzySet(0, 0, output_low_upper_bound, term="small")
-    I22 = TriangleFuzzySet(output_medium_lower_bound, output_medium_center,
-                           output_medium_upper_bound, term="medium")
-    I23 = TriangleFuzzySet(output_high_lower_bound, output_high_upper_bound,
-                           output_high_upper_bound, term="big")
-    
-    TLV_2 = LinguisticVariable([I21, I22, I23], universe_of_discourse=[0.0, 1.0])
-    FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cf", TLV_2)
-    
-    TLV_2 = LinguisticVariable([I21, I22, I23], universe_of_discourse=[0.0, 1.0])
-    FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cb", TLV_2)
-    
-    # For model strength output
-    output_low_upper_bound = 0.4
-    output_medium_lower_bound = 0.3
-    output_medium_center = 0.75
-    output_medium_upper_bound = 0.9
-    output_high_lower_bound = 0.8
-    output_high_upper_bound = 1.0
-    
-    O1 = TriangleFuzzySet(0, 0, output_low_upper_bound, term="small")
-    O2 = TriangleFuzzySet(output_medium_lower_bound, output_medium_center,
-                          output_medium_upper_bound, term="medium")
-    O3 = TriangleFuzzySet(output_high_lower_bound, output_high_upper_bound,
-                          output_high_upper_bound, term="big")
-    
-    O = LinguisticVariable([O1, O2, O3], universe_of_discourse=[0, output_high_upper_bound])
-    FS_recommendation_strength_hybrid.add_linguistic_variable("model_strength", O)
-
-
+    output_var = LinguisticVariable([O1, O2, O3, O4, O5], universe_of_discourse=[0.0, 1.0])
+    FS_recommendation_strength_hybrid.add_linguistic_variable("model_strength", output_var)
     """
-
     ### Trapezoid ###
-    """
-    B1 = TrapezoidFuzzySet(0, 0, 2, 4, term="small")
-    B2 = TrapezoidFuzzySet(3, 4, 6, 7, term="medium")
-    B3 = TrapezoidFuzzySet(6, 8, 10, 10, term="big")
+    B1 = TrapezoidFuzzySet(0, 0, 0.1, 0.2, term="very_small")
+    B2 = TrapezoidFuzzySet(0.1, 0.2, 0.3, 0.4, term="small")
+    B3 = TrapezoidFuzzySet(0.3, 0.4, 0.6, 0.7, term="medium")
+    B4 = TrapezoidFuzzySet(0.6, 0.7, 0.8, 0.9, term="big")
+    B5 = TrapezoidFuzzySet(0.8, 0.9, 1.0, 1.0, term="very_big")
 
-    belief_var = LinguisticVariable([B1, B2, B3], universe_of_discourse=[0, 10])
+    belief_var = LinguisticVariable([B1, B2, B3, B4, B5], universe_of_discourse=[0, 1])
     FS_recommendation_strength_hybrid.add_linguistic_variable("belief_in_cf_model", belief_var)
     FS_recommendation_strength_hybrid.add_linguistic_variable("belief_in_cb_model", belief_var)
 
     # Recommendation coefficient variables (CF and CB)
-    R1 = TrapezoidFuzzySet(0, 0, 0.3, 0.5, term="small")
-    R2 = TrapezoidFuzzySet(0.4, 0.65, 0.85, 0.9, term="medium")
-    R3 = TrapezoidFuzzySet(0.8, 0.9, 1, 1, term="big")
-    
-    rec_coef_var = LinguisticVariable([R1, R2, R3], universe_of_discourse=[0, 1])
+    R1 = TrapezoidFuzzySet(0, 0, 0.1, 0.2, term="very_small")
+    R2 = TrapezoidFuzzySet(0.1, 0.2, 0.3, 0.4, term="small")
+    R3 = TrapezoidFuzzySet(0.3, 0.4, 0.6, 0.7, term="medium")
+    R4 = TrapezoidFuzzySet(0.6, 0.7, 0.8, 0.9, term="big")
+    R5 = TrapezoidFuzzySet(0.8, 0.9, 1.0, 1.0, term="very_big")
+
+    rec_coef_var = LinguisticVariable([R1, R2, R3, R4, R5], universe_of_discourse=[0, 1])
     FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cf", rec_coef_var)
     FS_recommendation_strength_hybrid.add_linguistic_variable("recommendation_coefficient_cb", rec_coef_var)
-    
+
     # Output variable (model strength)
-    O1 = TrapezoidFuzzySet(0, 0, 0.2, 0.4, term="small")
-    O2 = TrapezoidFuzzySet(0.3, 0.65, 0.85, 0.9, term="medium")
-    O3 = TrapezoidFuzzySet(0.8, 0.9, 1, 1, term="big")
-    
-    O = LinguisticVariable([O1, O2, O3], universe_of_discourse=[0, 1])
+    O1 = TrapezoidFuzzySet(0, 0, 0.1, 0.2, term="very_small")
+    O2 = TrapezoidFuzzySet(0.1, 0.2, 0.3, 0.4, term="small")
+    O3 = TrapezoidFuzzySet(0.3, 0.4, 0.6, 0.7, term="medium")
+    O4 = TrapezoidFuzzySet(0.6, 0.7, 0.8, 0.9, term="big")
+    O5 = TrapezoidFuzzySet(0.8, 0.9, 1.0, 1.0, term="very_big")
+
+    O = LinguisticVariable([O1, O2, O3, O4, O5], universe_of_discourse=[0, 1])
     FS_recommendation_strength_hybrid.add_linguistic_variable("model_strength", O)
-    """
 
     ### Gaussian ###
     # Belief variables (CF and CB)
 
     # Belief variables
-    B1 = GaussianFuzzySet(1, 0.5, term="very_small")
-    B2 = GaussianFuzzySet(3, 1, term="small")
-    B3 = GaussianFuzzySet(5, 1, term="medium")
-    B4 = GaussianFuzzySet(7, 1, term="big")
-    B5 = GaussianFuzzySet(9, 0.5, term="very_big")
+    """
+    B1 = GaussianFuzzySet(0.1, 0.05, term="very_small")
+    B2 = GaussianFuzzySet(0.3, 0.1, term="small")
+    B3 = GaussianFuzzySet(0.5, 0.1, term="medium")
+    B4 = GaussianFuzzySet(0.7, 0.1, term="big")
+    B5 = GaussianFuzzySet(0.9, 0.05, term="very_big")
 
     belief_var = LinguisticVariable([B1, B2, B3, B4, B5], universe_of_discourse=[0, 10])
     FS_recommendation_strength_hybrid.add_linguistic_variable("belief_in_cf_model", belief_var)
@@ -342,6 +308,7 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
 
     O = LinguisticVariable([O1, O2, O3, O4, O5], universe_of_discourse=[0, 1])
     FS_recommendation_strength_hybrid.add_linguistic_variable("model_strength", O)
+    """
 
     FS_recommendation_strength_hybrid.add_rules([
         "IF (belief_in_cf_model IS very_big) AND (recommendation_coefficient_cf IS very_big) THEN (model_strength IS very_big)",
@@ -368,6 +335,15 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
         "IF (belief_in_cb_model IS very_big) AND (recommendation_coefficient_cb IS big) THEN (model_strength IS very_big)",
         "IF (belief_in_cf_model IS small) AND (recommendation_coefficient_cf IS very_small) THEN (model_strength IS very_small)",
         "IF (belief_in_cb_model IS small) AND (recommendation_coefficient_cb IS very_small) THEN (model_strength IS very_small)",
+        "IF (belief_in_cf_model IS big) AND (recommendation_coefficient_cf IS medium) AND (belief_in_cb_model IS small) THEN (model_strength IS big)",
+        "IF (belief_in_cf_model IS very_big) AND (recommendation_coefficient_cf IS very_small) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS medium)",
+        "IF (belief_in_cf_model IS big) AND (recommendation_coefficient_cf IS medium) THEN (model_strength IS big)",
+        "IF (belief_in_cb_model IS big) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS big)",
+        "IF (belief_in_cf_model IS big) AND (belief_in_cb_model IS small) THEN (model_strength IS big)",
+        "IF (belief_in_cb_model IS big) AND (belief_in_cf_model IS small) THEN (model_strength IS big)",
+        "IF (belief_in_cf_model IS very_big) OR (recommendation_coefficient_cf IS very_big) THEN (model_strength IS very_big)",
+        "IF (belief_in_cb_model IS very_big) OR (recommendation_coefficient_cb IS very_big) THEN (model_strength IS very_big)",
+        "IF (belief_in_cf_model IS medium) AND (belief_in_cb_model IS medium) AND (recommendation_coefficient_cf IS medium) AND (recommendation_coefficient_cb IS medium) THEN (model_strength IS medium)",
     ])
 
     FS_recommendation_strength_hybrid.set_variable("belief_in_cf_model", belief_in_model_cf)
@@ -399,8 +375,11 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
                         FS_recommendation_strength_hybrid.get_linguistic_variable("model_strength"))
     """
 
-
     logging.debug("fuzzy ensemble coefficient:")
     logging.debug(recommendation_fuzzy_hybrid)
 
     return recommendation_fuzzy_hybrid['model_strength']
+
+
+
+
