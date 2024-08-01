@@ -19,20 +19,16 @@
 
 
 {'set': 'test', 'model_name': 'Bayesian Hybrid', 'recall@5': 0.4075829383886256, 'recall@10': 0.514218009478673}
-
 {'set': 'test', 'model_name': 'Bayesian Hybrid', 'recall@5': 0.25757575757575757, 'recall@10': 0.47878787878787876}  with fuzzy expert
 
 # after new rules added
 {'set': 'test', 'model_name': 'Fuzzy Bayesian Hybrid Trapezoid', 'recall@5': 0.25757575757575757, 'recall@10': 0.47878787878787876}
 
 {'set': 'test', 'model_name': 'DeepHybridRecommender', 'recall@5': 0.3009478672985782, 'recall@10': 0.34360189573459715}
-
 {'set': 'test', 'model_name': 'DeepHybridRecommender', 'recall@5': 0.3033175355450237, 'recall@10': 0.33649289099526064}
 
 
 {'set': 'test', 'model_name': 'AdaptiveWeightHybridRecommender', 'recall@5': 0.4075829383886256, 'recall@10': 0.514218009478673}
-
-
 
 ### Popularity without fuzzy interactions ###
 {'set': 'test', 'model_name': 'Popularity', 'recall@5': 0.40606060606060607, 'recall@10': 0.4303030303030303}
