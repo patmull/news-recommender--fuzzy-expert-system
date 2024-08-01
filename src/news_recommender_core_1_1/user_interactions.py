@@ -30,6 +30,7 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+TOP_N = 20
 
 class TfIdf:
 
@@ -170,18 +171,18 @@ class ContentBasedRecommender:
     def get_model_name(self):
         return self.MODEL_NAME
 
-    def _get_similar_items_to_user_profile(self, person_id, user_profiles, topn=1000):
+    def _get_similar_items_to_user_profile(self, person_id, user_profiles, limit_num_of_recommendations=TOP_N):
         # Computes the cosine similarity between the user profile and all item profiles
         cosine_similarities = cosine_similarity(user_profiles[person_id], self.tfidf_matrix)
         # Gets the top similar items
-        similar_indices = cosine_similarities.argsort().flatten()[-topn:]
+        similar_indices = cosine_similarities.argsort().flatten()[-limit_num_of_recommendations:]
         # Sort the similar items by similarity
         similar_items = sorted([(self.item_ids[i], cosine_similarities[0, i]) for i in similar_indices],
                                key=lambda x: -x[1])
         return similar_items
 
-    def recommend_items_cb(self, user_id, user_profiles, items_to_ignore=[], topn=10, verbose=False):
-        similar_items = self._get_similar_items_to_user_profile(user_id, user_profiles)
+    def recommend_items_cb(self, user_id, user_profiles, items_to_ignore=[], limit_num_of_recommendations=1000000, verbose=False):
+        similar_items = self._get_similar_items_to_user_profile(user_id, user_profiles, limit_num_of_recommendations)
         # Ignores items the user has already interacted
         similar_items_filtered = list(filter(lambda x: x[0] not in items_to_ignore, similar_items))
 
@@ -238,11 +239,11 @@ class HybridRecommender:
             with open(file_path.as_posix(), 'rb') as f:
                 return pickle.load(f)
 
-    def get_cb_recommendations(self, user_id, user_profiles, items_to_ignore=[], topn=10):
-        return self.cb_rec_model.recommend_items_cb(user_id, user_profiles, items_to_ignore, topn=topn)
+    def get_cb_recommendations(self, user_id, user_profiles, items_to_ignore=[], limit_num_of_recommendations=TOP_N):
+        return self.cb_rec_model.recommend_items_cb(user_id, user_profiles, items_to_ignore, limit_num_of_recommendations=limit_num_of_recommendations)
 
-    def get_cf_recommendations(self, user_id, items_to_ignore=[], topn=10):
-        return self.cf_rec_model.recommend_items_cf(user_id, items_to_ignore, topn=topn)
+    def get_cf_recommendations(self, user_id, items_to_ignore=[], limit_num_of_recommendations=TOP_N):
+        return self.cf_rec_model.recommend_items_cf(user_id, items_to_ignore, limit_num_of_recommendations=limit_num_of_recommendations)
 
     def get_recommendation_strength_hybrid_with_logging(self,
                                                         belief_in_model_cf,
@@ -250,7 +251,7 @@ class HybridRecommender:
                                                         recommendation_coefficient_cf,
                                                         recommendation_coefficient_cb,
                                                         recommendation_strength_result,
-                                                        save_every_n_iterations=1000):
+                                                        save_every_n_iterations=1000000):
         # this should save the time radically since the cache is used later
         belief_in_model_cf = round(float(belief_in_model_cf), 2)
         belief_in_model_cb = round(float(belief_in_model_cb), 2)
@@ -286,7 +287,7 @@ class HybridRecommender:
         return recs_df
 
     def recommend_items_hybrid(self, user_id, user_profiles, belief_in_model_cb, belief_in_model_cf, items_to_ignore=[],
-                               topn=10, verbose=False):
+                               limit_num_of_recommendations=TOP_N, verbose=False):
 
         # For avoiding unnecessary computations
         # self.recs_df = self.load_saved_results(belief_in_model_cb, belief_in_model_cf)
@@ -294,13 +295,13 @@ class HybridRecommender:
         # Getting the top N from Content-based filtering recommendations
         cb_recs_df = self.cb_rec_model.recommend_items_cb(user_id=user_id, user_profiles=user_profiles,
                                                           items_to_ignore=items_to_ignore, verbose=verbose,
-                                                          topn=topn).rename(
+                                                          limit_num_of_recommendations=1000000).rename(
             columns={'recommendation_strength': 'recommendation_strengthCB'})
 
         # Getting the top N from Collaborative filtering recommendations
         cf_recs_df = (self.cf_rec_model.recommend_items_cf(user_id=user_id,
                                                            items_to_ignore=items_to_ignore, verbose=verbose,
-                                                           topn=topn).rename(
+                                                           limit_num_of_recommendations=1000000).rename(
             columns={'recommendation_strength': 'recommendation_strengthCF'}
         ))
 
@@ -365,7 +366,7 @@ class HybridRecommender:
                     + recs_df['recommendation_strengthCF'] * 1.0)
 
         # Sorting recommendations by hybrid score
-        recommendations_df = recs_df.sort_values('recommendation_strengthHybrid', ascending=False).head(topn)
+        recommendations_df = recs_df.sort_values('recommendation_strengthHybrid', ascending=False).head(limit_num_of_recommendations)
         if verbose:
             if self.items_df is None:
                 raise Exception('"items_df" is required in verbose mode')
@@ -422,13 +423,13 @@ class BayesianHybridRecommender(HybridRecommender):
         elif model_type == 'cf':
             return self.cf_prior.mean()
 
-    def recommend_items_bayesian_hybrid(self, user_id, user_profiles, items_to_ignore=[], topn=10, verbose=False):
+    def recommend_items_bayesian_hybrid(self, user_id, user_profiles, items_to_ignore=[], limit_num_of_recommendations=TOP_N, verbose=False):
 
         cb_weight = self.get_model_weight('cb')
         cf_weight = self.get_model_weight('cf')
 
-        cb_recs_df = self.get_cb_recommendations(user_id, user_profiles, items_to_ignore, topn=topn)
-        cf_recs_df = self.get_cf_recommendations(user_id, items_to_ignore, topn=topn)
+        cb_recs_df = self.get_cb_recommendations(user_id, user_profiles, items_to_ignore, limit_num_of_recommendations=limit_num_of_recommendations)
+        cf_recs_df = self.get_cf_recommendations(user_id, items_to_ignore, limit_num_of_recommendations=limit_num_of_recommendations)
 
         cb_recs_df = cb_recs_df.rename(columns={'recommendation_strength': 'recommendation_strengthCB'})
         cf_recs_df = cf_recs_df.rename(columns={'recommendation_strength': 'recommendation_strengthCF'})
@@ -462,7 +463,7 @@ class BayesianHybridRecommender(HybridRecommender):
 
         recs_df['recommendation_strength'] = recs_df['recommendation_strengthHybrid']
 
-        recs_df = recs_df.sort_values('recommendation_strength', ascending=False).head(topn)
+        recs_df = recs_df.sort_values('recommendation_strength', ascending=False).head(limit_num_of_recommendations)
 
         if verbose:
             if self.items_df is None:
@@ -504,7 +505,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                       belief_in_interaction_strength_likes_global=None,
                                       belief_in_liked=None, belief_in_viewed=None,
                                       min_num_of_interactions: Optional[int] = 5,
-                                      topn_recommended=1000000000,
+                                      limit_num_of_recommendations_recommended=TOP_N,
                                       num_of_interactions: Optional[int] = None,
                                       num_of_users: Optional[int] = None,
                                       checkpoint_file='recommender_checkpoint.pkl',
@@ -512,11 +513,6 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                       fuzzy_interactions_user=False,
                                       fuzzy_ensemble=False):
     interaction_strength_iteration_counter = 0
-
-    logging.debug("belief_in_interaction_strength_views_global:")
-    logging.debug(belief_in_interaction_strength_views_global)
-    logging.debug("belief_in_interaction_strength_likes_global:")
-    logging.debug(belief_in_interaction_strength_likes_global)
 
     user_thumbs = load_user_thumbs()
     interactions_df_likes = pd.DataFrame.from_dict(user_thumbs, orient='columns')
@@ -637,7 +633,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     logging.debug(interactions_from_selected_users_df.head(10))
     logging.debug(interactions_from_selected_users_df.columns.tolist())
 
-    if fuzzy_interactions_user:
+    if fuzzy_interactions_user is True:
         users_interactions_count_df = interactions_from_selected_users_df.groupby(
             ['user_id', 'post_id']).size().groupby('user_id').size()
         users_with_enough_interactions_df = \
@@ -764,11 +760,11 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
 
     print('Evaluating Popularity recommendation model...')
     pop_global_metrics, pop_detailed_results_df = model_evaluator.evaluate_model(popularity_model, user_profiles,
-                                                                                 topn_recommended)
+                                                                                 limit_num_of_recommendations_recommended)
     fuzzy_description = ""
-    if fuzzy_interactions_global:
+    if fuzzy_interactions_global is True:
         fuzzy_description += " with fuzzy interactions global"
-    if fuzzy_interactions_user:
+    if fuzzy_interactions_user is True:
         fuzzy_description += " with fuzzy interactions user"
 
     print('\nGlobal metrics:\n%s %s' % (pop_global_metrics, fuzzy_description))
@@ -796,7 +792,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
 
     print('Evaluating Content-Based Filtering model...')
     cb_global_metrics, cb_detailed_results_df = model_evaluator.evaluate_model(content_based_recommender_model,
-                                                                               user_profiles, topn_recommended)
+                                                                               user_profiles, limit_num_of_recommendations_recommended)
     print('\nGlobal metrics:\n%s' % cb_global_metrics)
     cb_detailed_results_df.head(10)
 
@@ -862,7 +858,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
 
     print('Evaluating Collaborative Filtering (SVD Matrix Factorization) model...')
     cf_global_metrics, cf_detailed_results_df = model_evaluator.evaluate_model(cf_recommender_model, user_profiles,
-                                                                               topn_recommended)
+                                                                               limit_num_of_recommendations_recommended)
     print('\nGlobal metrics:\n%s' % cf_global_metrics)
     logging.debug(cf_detailed_results_df.head(10))
 
@@ -870,7 +866,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                                  fuzzy_expert=False)
     print('Evaluating the Hybrid model...')
     hybrid_global_metrics, hybrid_detailed_results_df = model_evaluator.evaluate_model(hybrid_recommender_model,
-                                                                                       user_profiles, topn_recommended)
+                                                                                       user_profiles, limit_num_of_recommendations_recommended)
     print('\nGlobal metrics:\n%s' % hybrid_global_metrics)
     hybrid_detailed_results_df.head(10)
 
@@ -885,7 +881,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
 
     print('Evaluating the Deep Hybrid model...')
     deep_hybrid_global_metrics, deep_hybrid_detailed_results_df = model_evaluator.evaluate_model(
-        deep_hybrid_recommender_model, user_profiles, topn_recommended)
+        deep_hybrid_recommender_model, user_profiles, limit_num_of_recommendations)
     print('\nGlobal metrics:\n%s' % deep_hybrid_global_metrics)
     deep_hybrid_detailed_results_df.head(10)
     """
@@ -894,7 +890,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     bayesian_hybrid_recommender_model = BayesianHybridRecommender(content_based_recommender_model, cf_recommender_model,
                                                                   articles_df, fuzzy_expert_enabled=fuzzy_ensemble)
     bayesian_hybrid_global_metrics, bayesian_hybrid_detailed_results_df = model_evaluator.evaluate_model(
-        bayesian_hybrid_recommender_model, user_profiles, topn_recommended)
+        bayesian_hybrid_recommender_model, user_profiles, limit_num_of_recommendations_recommended)
     fuzzy_description = ""
     if fuzzy_ensemble:
         fuzzy_description = " with fuzzy expert"
@@ -911,7 +907,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     stacking_hybrid_recommender_model.fit_stacking_model(user_profiles, interactions_train_df)
     print('Evaluating the Stacking Hybrid model...')
     stacking_hybrid_global_metrics, stacking_hybrid_detailed_results_df = model_evaluator.evaluate_model(
-        stacking_hybrid_recommender_model, user_profiles, topn_recommended)
+        stacking_hybrid_recommender_model, user_profiles, limit_num_of_recommendations)
     print('\nGlobal metrics:\n%s' % stacking_hybrid_global_metrics)
     stacking_hybrid_detailed_results_df.head(10)
     """
@@ -922,7 +918,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                                                                fuzzy_ensemble=fuzzy_ensemble
                                                                                )
     adaptive_hybrid_global_metrics, adaptive_hybrid_detailed_results_df = model_evaluator.evaluate_model(
-        adaptive_weight_hybrid_recommender_model, user_profiles, topn_recommended)
+        adaptive_weight_hybrid_recommender_model, user_profiles, limit_num_of_recommendations_recommended)
     fuzzy_description = ""
     if fuzzy_ensemble:
         fuzzy_description = " with fuzzy expert"
@@ -938,7 +934,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                                        fuzzy_expert=fuzzy_ensemble)
     hybrid_fuzzy_global_metrics, hybrid_fuzzy_detailed_results_df = model_evaluator.evaluate_model(
         hybrid_fuzzy_recommender_model,
-        user_profiles, topn_recommended)
+        user_profiles, limit_num_of_recommendations_recommended)
     print('\nGlobal metrics:\n%s' % hybrid_fuzzy_global_metrics)
     hybrid_fuzzy_detailed_results_df.head(10)
 
@@ -952,6 +948,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     logging.debug(global_metrics_df)
     recall_at_5_stacking_hybrid = global_metrics_df.loc['StackingHybridRecommender']['recall@5']
     recall_at_10_stacking_hybrid = global_metrics_df.loc['StackingHybridRecommender']['recall@10']
+    recall_at_20_stacking_hybrid = global_metrics_df.loc['StackingHybridRecommender']['recall@20']
 
 
     inspect_interactions(tested_user_profile_id,
@@ -984,7 +981,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                 user_profiles,
                 belief_in_model_cb,
                 belief_in_model_cf,
-                topn=20,
+                limit_num_of_recommendations=20,
                 verbose=True)
             logging.debug("Hybrid_recommender_model for the tested user profile {}:".format(tested_user_profile_id))
             logging.debug(hybrid_fuzzy_recommender_model)
@@ -993,21 +990,27 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
 
     recall_at_5_hybrid = global_metrics_df.loc['Hybrid']['recall@5']
     recall_at_10_hybrid = global_metrics_df.loc['Hybrid']['recall@10']
+    recall_at_20_hybrid = global_metrics_df.loc['Hybrid']['recall@20']
 
     recall_at_5_hybrid_bayesian = global_metrics_df.loc['Bayesian Hybrid']['recall@5']
     recall_at_10_hybrid_bayesian = global_metrics_df.loc['Bayesian Hybrid']['recall@10']
+    recall_at_20_hybrid_bayesian = global_metrics_df.loc['Bayesian Hybrid']['recall@20']
 
     recall_at_5_hybrid_or_fuzzy_hybrid = global_metrics_df.loc['Fuzzy Hybrid']['recall@5']
     recall_at_10_hybrid_or_fuzzy_hybrid = global_metrics_df.loc['Fuzzy Hybrid']['recall@10']
+    recall_at_20_hybrid_or_fuzzy_hybrid = global_metrics_df.loc['Fuzzy Hybrid']['recall@20']
 
     recall_at_5_cf = global_metrics_df.loc['Collaborative Filtering']['recall@5']
     recall_at_10_cf = global_metrics_df.loc['Collaborative Filtering']['recall@10']
+    recall_at_20_cf = global_metrics_df.loc['Collaborative Filtering']['recall@20']
 
     recall_at_5_cb = global_metrics_df.loc['Content-Based']['recall@5']
     recall_at_10_cb = global_metrics_df.loc['Content-Based']['recall@10']
+    recall_at_20_cb = global_metrics_df.loc['Content-Based']['recall@20']
 
     recall_at_5_pop = global_metrics_df.loc['Popularity']['recall@5']
     recall_at_10_pop = global_metrics_df.loc['Popularity']['recall@10']
+    recall_at_20_pop = global_metrics_df.loc['Popularity']['recall@20']
 
     return (recall_at_5_hybrid, recall_at_10_hybrid, recall_at_5_hybrid_or_fuzzy_hybrid,
             recall_at_10_hybrid_or_fuzzy_hybrid, recall_at_5_hybrid_bayesian, recall_at_10_hybrid_bayesian,
@@ -1035,7 +1038,7 @@ class CFRecommender:
     def get_model_name(self):
         return self.MODEL_NAME
 
-    def recommend_items_cf(self, user_id, items_to_ignore=[], topn=10, verbose=False):
+    def recommend_items_cf(self, user_id, items_to_ignore=[], limit_num_of_recommendations=10, verbose=False):
         # Get and sort the user's predictions
         sorted_user_predictions = self.cf_predictions_df[user_id].sort_values(ascending=False) \
             .reset_index().rename(columns={user_id: 'recommendation_strength'})
@@ -1043,7 +1046,7 @@ class CFRecommender:
         # Recommend the highest predicted rating movies that the user hasn't seen yet.
         recommendations_df = sorted_user_predictions[~sorted_user_predictions['post_id'].isin(items_to_ignore)] \
             .sort_values('recommendation_strength', ascending=False) \
-            # .head(topn)
+            # .head(limit_num_of_recommendations)
 
         if verbose:
             if self.items_df is None:
@@ -1076,9 +1079,9 @@ class AdaptiveWeightHybridRecommender(HybridRecommender):
             self.cb_weight += self.learning_rate * (target_cb_weight - self.cb_weight)
             self.cf_weight = 1 - self.cb_weight
 
-    def recommend_items_adaptive_hybrid(self, user_id, user_profiles, items_to_ignore=[], topn=10, verbose=False):
-        cb_recs_df = self.cb_rec_model.recommend_items_cb(user_id, user_profiles, items_to_ignore, topn=topn)
-        cf_recs_df = self.cf_rec_model.recommend_items_cf(user_id, items_to_ignore, topn=topn)
+    def recommend_items_adaptive_hybrid(self, user_id, user_profiles, items_to_ignore=[], limit_num_of_recommendations=TOP_N, verbose=False):
+        cb_recs_df = self.cb_rec_model.recommend_items_cb(user_id, user_profiles, items_to_ignore, limit_num_of_recommendations=limit_num_of_recommendations)
+        cf_recs_df = self.cf_rec_model.recommend_items_cf(user_id, items_to_ignore, limit_num_of_recommendations=limit_num_of_recommendations)
 
         cb_recs_df = cb_recs_df.rename(columns={'recommendation_strength': 'recommendation_strengthCB'})
         cf_recs_df = cf_recs_df.rename(columns={'recommendation_strength': 'recommendation_strengthCF'})
@@ -1113,7 +1116,7 @@ class AdaptiveWeightHybridRecommender(HybridRecommender):
 
             recs_df['recommendation_strength'] = recs_df['recommendation_strengthHybrid']
 
-        recommendations_df = recs_df.sort_values('recommendation_strength', ascending=False).head(topn)
+        recommendations_df = recs_df.sort_values('recommendation_strength', ascending=False).head(limit_num_of_recommendations)
 
         return recommendations_df
 
@@ -1141,17 +1144,17 @@ class ModelEvaluator:
 
         return set(non_interacted_items_sample)
 
-    def _verify_hit_top_n(self, item_id, recommended_items, topn):
+    def _verify_hit_top_n(self, item_id, recommended_items, limit_num_of_recommendations):
         try:
             index = next(i for i, c in enumerate(recommended_items) if c == item_id)
         except:
             index = -1
-        hit = int(index in range(0, topn))
+        hit = int(index in range(0, limit_num_of_recommendations))
         return hit, index
 
     def evaluate_model_for_user(self, model, user_id, user_profiles,
                                 interactions_evaluation_indexed_df,  # TODO: This does not work as expected.
-                                topn_recommended=1000000000):
+                                limit_num_of_recommendations=1000000):
         # Getting the items in test set
         interacted_values_test_set = self.interactions_test_indexed_df.loc[user_id]
         if type(interacted_values_test_set['post_id']) == pd.Series:
@@ -1165,18 +1168,18 @@ class ModelEvaluator:
             person_recs_df = model.recommend_items_cf(user_id=user_id,
                                                       items_to_ignore=get_items_interacted(user_id,
                                                                                            self.interactions_train_indexed_df),
-                                                      topn=topn_recommended)
+                                                      limit_num_of_recommendations=limit_num_of_recommendations)
         elif model.get_model_name() == "Popularity":
             person_recs_df = model.recommend_items_popularity(user_id=user_id,
                                                               items_to_ignore=get_items_interacted(user_id,
                                                                                                    self.interactions_train_indexed_df),
-                                                              topn=topn_recommended)
+                                                              limit_num_of_recommendations=limit_num_of_recommendations)
         elif model.get_model_name() == "Content-Based":
             person_recs_df = model.recommend_items_cb(user_id=user_id,
                                                       user_profiles=user_profiles,
                                                       items_to_ignore=get_items_interacted(user_id,
                                                                                            self.interactions_train_indexed_df),
-                                                      topn=topn_recommended)
+                                                      limit_num_of_recommendations=limit_num_of_recommendations)
 
         elif model.get_model_name() == "Hybrid" or model.get_model_name() == "Fuzzy Hybrid":
             person_recs_df = model.recommend_items_hybrid(user_id=user_id,
@@ -1185,32 +1188,32 @@ class ModelEvaluator:
                                                           belief_in_model_cf=self.belief_in_model_cf,
                                                           items_to_ignore=get_items_interacted(user_id,
                                                                                                self.interactions_train_indexed_df),
-                                                          topn=topn_recommended)
+                                                          limit_num_of_recommendations=limit_num_of_recommendations)
         elif model.get_model_name() == "Bayesian Hybrid":
             person_recs_df = model.recommend_items_bayesian_hybrid(user_id=user_id,
                                                                    user_profiles=user_profiles,
                                                                    items_to_ignore=get_items_interacted(user_id,
                                                                                                         self.interactions_train_indexed_df),
-                                                                   topn=topn_recommended)
+                                                                   limit_num_of_recommendations=limit_num_of_recommendations)
 
         elif model.get_model_name() == "AdaptiveWeightHybridRecommender":
             person_recs_df = model.recommend_items_adaptive_hybrid(user_id=user_id,
                                                                    user_profiles=user_profiles,
                                                                    items_to_ignore=get_items_interacted(user_id,
                                                                                                         self.interactions_train_indexed_df),
-                                                                   topn=topn_recommended)
+                                                                   limit_num_of_recommendations=limit_num_of_recommendations)
         elif model.get_model_name() == "StackingHybridRecommender":
             person_recs_df = model.recommend_items_stacking_hybrid(user_id=user_id,
                                                                    user_profiles=user_profiles,
                                                                    items_to_ignore=get_items_interacted(user_id,
                                                                                                         self.interactions_train_indexed_df),
-                                                                   topn=topn_recommended)
+                                                                   limit_num_of_recommendations=limit_num_of_recommendations)
         elif model.get_model_name() == "DeepHybridRecommender":
             person_recs_df = model.recommend_items_deep_hybrid(
                 user_id=user_id,
                 user_profiles=user_profiles,
                 items_to_ignore=get_items_interacted(user_id, self.interactions_train_indexed_df),
-                topn=topn_recommended
+                limit_num_of_recommendations=limit_num_of_recommendations
             )
 
         else:
@@ -1223,14 +1226,15 @@ class ModelEvaluator:
 
         hits_at_5_count = 0
         hits_at_10_count = 0
+        hits_at_20_count = 0
 
         if isinstance(model, BayesianHybridRecommender):
             cb_recs_df = model.get_cb_recommendations(user_id, user_profiles,
                                                       get_items_interacted(user_id, self.interactions_train_indexed_df),
-                                                      topn=topn_recommended)
+                                                      limit_num_of_recommendations=limit_num_of_recommendations)
             cf_recs_df = model.get_cf_recommendations(user_id,
                                                       get_items_interacted(user_id, self.interactions_train_indexed_df),
-                                                      topn=topn_recommended)
+                                                      limit_num_of_recommendations=limit_num_of_recommendations)
 
             cb_hits_at_5_count = 0
             cf_hits_at_5_count = 0
@@ -1258,6 +1262,8 @@ class ModelEvaluator:
                 hits_at_5_count += hit_at_5
                 hit_at_10, index_at_10 = self._verify_hit_top_n(item_id, valid_recs, 10)
                 hits_at_10_count += hit_at_10
+                hit_at_20, index_at_20 = self._verify_hit_top_n(item_id, valid_recs, 20)
+                hits_at_20_count += hit_at_20
 
             cb_success = cb_hits_at_5_count
             cf_success = cf_hits_at_5_count
@@ -1268,11 +1274,13 @@ class ModelEvaluator:
 
         elif isinstance(model, AdaptiveWeightHybridRecommender):
             cb_recs_df = model.get_cb_recommendations(user_id, user_profiles,
-                                                      get_items_interacted(user_id, self.interactions_train_indexed_df),
-                                                      topn=topn_recommended)
+                                                      get_items_interacted(user_id,
+                                                                           self.interactions_train_indexed_df),
+                                                      limit_num_of_recommendations=limit_num_of_recommendations)
             cf_recs_df = model.get_cf_recommendations(user_id,
-                                                      get_items_interacted(user_id, self.interactions_train_indexed_df),
-                                                      topn=topn_recommended)
+                                                      get_items_interacted(user_id,
+                                                                           self.interactions_train_indexed_df),
+                                                      limit_num_of_recommendations=limit_num_of_recommendations)
 
             cb_hits_at_5_count = 0
             cf_hits_at_5_count = 0
@@ -1307,7 +1315,7 @@ class ModelEvaluator:
                                                                        user_profiles=user_profiles,
                                                                        items_to_ignore=get_items_interacted(user_id,
                                                                                                             self.interactions_train_indexed_df),
-                                                                       topn=topn_recommended,
+                                                                       limit_num_of_recommendations=limit_num_of_recommendations,
                                                                        )
                 # Evaluate
                 valid_recs_df = person_recs_df[person_recs_df['post_id'].isin(items_to_filter_recs)]
@@ -1317,6 +1325,8 @@ class ModelEvaluator:
                 hits_at_5_count += hit_at_5
                 hit_at_10, index_at_10 = self._verify_hit_top_n(item_id, valid_recs, 10)
                 hits_at_10_count += hit_at_10
+                hit_at_20, index_at_20 = self._verify_hit_top_n(item_id, valid_recs, 20)
+                hits_at_20_count += hit_at_20
 
         else:
             # For each item the user has interacted in test set
@@ -1337,20 +1347,25 @@ class ModelEvaluator:
                 hits_at_5_count += hit_at_5
                 hit_at_10, index_at_10 = self._verify_hit_top_n(item_id, valid_recs, 10)
                 hits_at_10_count += hit_at_10
+                hit_at_20, index_at_20 = self._verify_hit_top_n(item_id, valid_recs, 20)
+                hits_at_20_count += hit_at_20
 
         # Recall is the rate of the interacted items that are ranked among the Top-N recommended items,
         # when mixed with a set of non-relevant items
         recall_at_5 = hits_at_5_count / float(interacted_items_count_testset)
         recall_at_10 = hits_at_10_count / float(interacted_items_count_testset)
+        recall_at_20 = hits_at_20_count / float(interacted_items_count_testset)
 
         person_metrics = {'hits@5_count': hits_at_5_count,
                           'hits@10_count': hits_at_10_count,
+                          'hits@20_count': hits_at_20_count,
                           'interacted_count': interacted_items_count_testset,
                           'recall@5': recall_at_5,
-                          'recall@10': recall_at_10}
+                          'recall@10': recall_at_10,
+                          'recall@20': recall_at_20}
         return person_metrics
 
-    def evaluate_model(self, model, user_profiles, topn_recommended=1000000000, evaluation_set='test'):
+    def evaluate_model(self, model, user_profiles, limit_num_of_recommnedations=1000000, evaluation_set='test'):
         # print('Running evaluation for users')
         people_metrics = []
         evaluation_df = pd.DataFrame()
@@ -1363,7 +1378,7 @@ class ModelEvaluator:
             # if idx % 100 == 0 and idx > 0:
             #    print('%d users processed' % idx)
             person_metrics = self.evaluate_model_for_user(model, user_id, user_profiles, evaluation_df,
-                                                          topn_recommended)
+                                                          limit_num_of_recommnedations)
             person_metrics['_user_id'] = user_id
             people_metrics.append(person_metrics)
             print('%d users processed' % idx)
@@ -1375,12 +1390,15 @@ class ModelEvaluator:
             detailed_results_df['interacted_count'].sum())
         global_recall_at_10 = detailed_results_df['hits@10_count'].sum() / float(
             detailed_results_df['interacted_count'].sum())
+        global_recall_at_20 = detailed_results_df['hits@20_count'].sum() / float(
+            detailed_results_df['interacted_count'].sum())
 
         global_metrics = {
             'set': evaluation_set,
             'model_name': model.get_model_name(),
             'recall@5': global_recall_at_5,
-            'recall@10': global_recall_at_10
+            'recall@10': global_recall_at_10,
+            'recall@20': global_recall_at_20
         }
 
         return global_metrics, detailed_results_df
@@ -1405,8 +1423,8 @@ class StackingHybridRecommender(HybridRecommender):
             user_id = row['user_id']
             item_id = row['post_id']
 
-            cb_rec = self.cb_rec_model.recommend_items_cb(user_id, user_profiles, topn=None)
-            cf_rec = self.cf_rec_model.recommend_items_cf(user_id, topn=None)
+            cb_rec = self.cb_rec_model.recommend_items_cb(user_id, user_profiles, limit_num_of_recommendations=None)
+            cf_rec = self.cf_rec_model.recommend_items_cf(user_id, limit_num_of_recommendations=None)
 
             cb_strength = cb_rec[cb_rec['post_id'] == item_id]['recommendation_strength'].values
             cf_strength = cf_rec[cf_rec['post_id'] == item_id]['recommendation_strength'].values
@@ -1431,18 +1449,18 @@ class StackingHybridRecommender(HybridRecommender):
         self.stacking_model.fit(X, y)
         self.is_fitted = True
 
-    def recommend_items_stacking_hybrid(self, user_id, user_profiles, items_to_ignore=[], topn=10, verbose=False):
+    def recommend_items_stacking_hybrid(self, user_id, user_profiles, items_to_ignore=[], limit_num_of_recommendations=TOP_N, verbose=False):
         if not self.is_fitted:
             raise Exception("Stacking model is not fitted. Call fit_stacking_model first.")
 
-        cb_recs_df = self.cb_rec_model.recommend_items_cb(user_id, user_profiles, items_to_ignore, topn=None)
-        cf_recs_df = self.cf_rec_model.recommend_items_cf(user_id, items_to_ignore, topn=None)
+        cb_recs_df = self.cb_rec_model.recommend_items_cb(user_id, user_profiles, items_to_ignore, limit_num_of_recommendations=None)
+        cf_recs_df = self.cf_rec_model.recommend_items_cf(user_id, items_to_ignore, limit_num_of_recommendations=None)
 
         combined_recs_df = cb_recs_df.merge(cf_recs_df, on='post_id', suffixes=('_cb', '_cf'))
         X_pred = combined_recs_df[['recommendation_strength_cb', 'recommendation_strength_cf']].values
         combined_recs_df['recommendation_strength'] = self.stacking_model.predict_proba(X_pred)[:, 1]
 
-        recommendations_df = combined_recs_df.sort_values('recommendation_strength', ascending=False).head(topn)
+        recommendations_df = combined_recs_df.sort_values('recommendation_strength', ascending=False).head(limit_num_of_recommendations)
 
         return recommendations_df
     
@@ -1462,11 +1480,11 @@ class PopularityRecommender:
     def get_model_name(self):
         return self.MODEL_NAME
 
-    def recommend_items_popularity(self, user_id, items_to_ignore=[], topn=10, verbose=False):
+    def recommend_items_popularity(self, user_id, items_to_ignore=[], limit_num_of_recommendations=TOP_N, verbose=False):
         # Recommend the more popular items that the user hasn't seen yet.
         recommendations_df = self.popularity_df[~self.popularity_df['post_id'].isin(items_to_ignore)] \
             .sort_values('recommendation_strength', ascending=False) \
-            .head(topn)
+            .head(limit_num_of_recommendations)
 
         if verbose:
             if self.items_df is None:
@@ -1564,7 +1582,7 @@ class DeepHybridRecommender(HybridRecommender):
         item_index = self.items_df[self.items_df['post_id'] == item_id].index[0]
         return self.content_features_matrix[item_index]
 
-    def recommend_items_deep_hybrid(self, user_id, user_profiles, items_to_ignore=[], topn=10):
+    def recommend_items_deep_hybrid(self, user_id, user_profiles, items_to_ignore=[], limit_num_of_recommendations=TOP_N):
         # Generate recommendations using the trained model
         all_items = list(self.item_id_map.values())
         user_id = self.user_id_map[user_id]
@@ -1585,4 +1603,4 @@ class DeepHybridRecommender(HybridRecommender):
         })
         recs_df = recs_df[~recs_df['post_id'].isin(items_to_ignore)]
 
-        return recs_df.sort_values('prediction', ascending=False).head(topn)
+        return recs_df.sort_values('prediction', ascending=False).head(limit_num_of_recommendations)

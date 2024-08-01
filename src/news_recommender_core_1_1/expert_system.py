@@ -358,7 +358,7 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
     x_labels = ['Membership Value', 'Membership Value', 'Membership Value']
     y_labels = ['Degree of Belief', 'Degree of Belief', 'Model Strength']
 
-    plot_fuzzy(belief_var, rec_coef_var, O, titles, x_labels, y_labels)
+    #plot_fuzzy(belief_var, rec_coef_var, O, titles, x_labels, y_labels)
 
     """
     # Plot output surface for belief_in_cf_model and recommendation_coefficient_cf

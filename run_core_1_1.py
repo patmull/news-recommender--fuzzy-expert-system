@@ -8,7 +8,7 @@ import random
 logging.basicConfig(level=logging.INFO)
 
 
-# init_user_interaction_recommender(num_of_users=40, num_of_interactions=200, topn_recommended=20)
+# init_user_interaction_recommender(num_of_users=40, num_of_interactions=200, limit_num_of_recommendations=20)
 # CF still poor. Needs to be increased.
 # or we can show it performs better if sample size low, but CF still needs to be reasonable for better results
 # init_user_interaction_recommender(use_fuzzy_expert=True)
@@ -122,9 +122,10 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
                 belief_in_interaction_strength_likes_global=new_row[3],
                 belief_in_liked=new_row[4],
                 belief_in_viewed=new_row[5],
-                fuzzy_interactions_global=True,
-                fuzzy_interactions_user=True,
-                fuzzy_ensemble=True
+                fuzzy_interactions_global=False,
+                fuzzy_interactions_user=False,
+                fuzzy_ensemble=False,
+                limit_num_of_recommendations_recommended=10000000000000
             )
 
             with open(path_to_results_csv.as_posix(), "a") as f:
