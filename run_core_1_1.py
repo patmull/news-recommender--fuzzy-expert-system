@@ -122,9 +122,9 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
                 belief_in_interaction_strength_likes_global=new_row[3],
                 belief_in_liked=new_row[4],
                 belief_in_viewed=new_row[5],
-                fuzzy_interactions_global=False,
-                fuzzy_interactions_user=False,
-                fuzzy_ensemble=False
+                fuzzy_interactions_global=True,
+                fuzzy_interactions_user=True,
+                fuzzy_ensemble=True
             )
 
             with open(path_to_results_csv.as_posix(), "a") as f:

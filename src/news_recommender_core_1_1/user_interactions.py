@@ -351,9 +351,8 @@ class HybridRecommender:
                 ),
                 axis=1
             )
-            recs_df['recommendation_strengthHybrid'] = (
-                                                               recs_df['recommendation_strengthCB']
-                                                               + recs_df['recommendation_strengthCF']) * recs_df[
+            recs_df['recommendation_strengthHybrid'] = (recs_df['recommendation_strengthCB']
+                                                        + recs_df['recommendation_strengthCF']) * recs_df[
                                                            'recommendation_strengthFuzzy']
             # Variant 4: multiply with the cb and cf
             # self.recs_df['recommendation_strengthHybrid'] = self.recs_df['recommendation_strengthCF_normalized'] * self.recs_df['recommendation_strengthCB_normalized'] * self.recs_df['recommendation_strengthHybrid']
@@ -513,6 +512,11 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
                                       fuzzy_interactions_user=False,
                                       fuzzy_ensemble=False):
     interaction_strength_iteration_counter = 0
+
+    logging.debug("belief_in_interaction_strength_views_global:")
+    logging.debug(belief_in_interaction_strength_views_global)
+    logging.debug("belief_in_interaction_strength_likes_global:")
+    logging.debug(belief_in_interaction_strength_likes_global)
 
     user_thumbs = load_user_thumbs()
     interactions_df_likes = pd.DataFrame.from_dict(user_thumbs, orient='columns')

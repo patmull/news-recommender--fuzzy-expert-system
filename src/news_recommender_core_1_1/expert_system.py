@@ -242,6 +242,7 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
     FS_recommendation_strength_hybrid.add_linguistic_variable("model_strength", output_var)
     """
     ### Trapezoid ###
+    """
     B1 = TrapezoidFuzzySet(0, 0, 0.1, 0.2, term="very_small")
     B2 = TrapezoidFuzzySet(0.1, 0.2, 0.3, 0.4, term="small")
     B3 = TrapezoidFuzzySet(0.3, 0.4, 0.6, 0.7, term="medium")
@@ -272,19 +273,18 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
 
     O = LinguisticVariable([O1, O2, O3, O4, O5], universe_of_discourse=[0, 1])
     FS_recommendation_strength_hybrid.add_linguistic_variable("model_strength", O)
-
+    """
     ### Gaussian ###
     # Belief variables (CF and CB)
 
     # Belief variables
-    """
     B1 = GaussianFuzzySet(0.1, 0.05, term="very_small")
     B2 = GaussianFuzzySet(0.3, 0.1, term="small")
     B3 = GaussianFuzzySet(0.5, 0.1, term="medium")
     B4 = GaussianFuzzySet(0.7, 0.1, term="big")
     B5 = GaussianFuzzySet(0.9, 0.05, term="very_big")
 
-    belief_var = LinguisticVariable([B1, B2, B3, B4, B5], universe_of_discourse=[0, 10])
+    belief_var = LinguisticVariable([B1, B2, B3, B4, B5], universe_of_discourse=[0, 1.0])
     FS_recommendation_strength_hybrid.add_linguistic_variable("belief_in_cf_model", belief_var)
     FS_recommendation_strength_hybrid.add_linguistic_variable("belief_in_cb_model", belief_var)
 
@@ -308,7 +308,6 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
 
     O = LinguisticVariable([O1, O2, O3, O4, O5], universe_of_discourse=[0, 1])
     FS_recommendation_strength_hybrid.add_linguistic_variable("model_strength", O)
-    """
 
     FS_recommendation_strength_hybrid.add_rules([
         "IF (belief_in_cf_model IS very_big) AND (recommendation_coefficient_cf IS very_big) THEN (model_strength IS very_big)",
@@ -359,7 +358,7 @@ def get_recommendation_strength_hybrid(belief_in_model_cf, belief_in_model_cb,
     x_labels = ['Membership Value', 'Membership Value', 'Membership Value']
     y_labels = ['Degree of Belief', 'Degree of Belief', 'Model Strength']
 
-    #plot_fuzzy(belief_var, rec_coef_var, O, titles, x_labels, y_labels)
+    plot_fuzzy(belief_var, rec_coef_var, O, titles, x_labels, y_labels)
 
     """
     # Plot output surface for belief_in_cf_model and recommendation_coefficient_cf
