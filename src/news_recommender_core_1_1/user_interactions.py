@@ -872,7 +872,7 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
 
     # Create and train the DeepHybridRecommender
     # merge the interactions and views
-    """
+
     deep_hybrid_recommender_model = DeepHybridRecommender(interactions_full_indexed_df,
                                                           content_based_recommender_model,
                                                           cf_recommender_model,
@@ -881,10 +881,10 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
 
     print('Evaluating the Deep Hybrid model...')
     deep_hybrid_global_metrics, deep_hybrid_detailed_results_df = model_evaluator.evaluate_model(
-        deep_hybrid_recommender_model, user_profiles, limit_num_of_recommendations)
+        deep_hybrid_recommender_model, user_profiles)
     print('\nGlobal metrics:\n%s' % deep_hybrid_global_metrics)
     deep_hybrid_detailed_results_df.head(10)
-    """
+
 
     print('Evaluating the Bayesian Hybrid model...')
     bayesian_hybrid_recommender_model = BayesianHybridRecommender(content_based_recommender_model, cf_recommender_model,
@@ -1501,8 +1501,8 @@ from keras._tf_keras.keras.models import Model
 from keras._tf_keras.keras.layers import Input, Embedding, Flatten, Concatenate, Dense, Dropout
 
 class DeepHybridRecommender(HybridRecommender):
-    def __init__(self, interactions_full_indexed_df, cb_rec_model, cf_rec_model, items_df, n_factors=50,
-                 max_features=50):
+    def __init__(self, interactions_full_indexed_df, cb_rec_model, cf_rec_model, items_df, n_factors=300,
+                 max_features=300):
         super().__init__(cb_rec_model, cf_rec_model, items_df)
         self.n_factors = n_factors
         self.interactions_full_indexed_df = interactions_full_indexed_df
