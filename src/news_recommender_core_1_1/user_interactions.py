@@ -1018,6 +1018,34 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
             recall_at_10_cb, recall_at_5_pop, recall_at_10_pop)
 
 
+def create_cf_recommender(interactions_train_df, articles_df):
+    # Creating a sparse pivot table with users in rows and items in columns
+    users_items_pivot_matrix_df = interactions_train_df.pivot(index='user_id',
+                                                              columns='post_id',
+                                                              values='recommendation_strength').fillna(0)
+
+    users_items_pivot_matrix = users_items_pivot_matrix_df.values
+    users_ids = list(users_items_pivot_matrix_df.index)
+    users_items_pivot_sparse_matrix = csr_matrix(users_items_pivot_matrix)
+
+    # The number of factors to factor the user-item matrix.
+    NUMBER_OF_FACTORS_MF = 15
+
+    # Performs matrix factorization of the original user item matrix
+    U, sigma, Vt = svds(users_items_pivot_sparse_matrix, k=NUMBER_OF_FACTORS_MF)
+
+    sigma_matrix = np.diag(sigma)
+    all_user_predicted_ratings = np.dot(np.dot(U, sigma_matrix), Vt)
+
+    all_user_predicted_ratings_norm = (all_user_predicted_ratings - all_user_predicted_ratings.min()) / (
+            all_user_predicted_ratings.max() - all_user_predicted_ratings.min())
+
+    cf_preds_df = pd.DataFrame(all_user_predicted_ratings_norm, columns=users_items_pivot_matrix_df.columns,
+                               index=users_ids).transpose()
+
+    return CFRecommender(cf_preds_df, articles_df)
+
+
 # Top-N accuracy metrics consts
 EVAL_RANDOM_SAMPLE_NON_INTERACTED_ITEMS = 100
 
