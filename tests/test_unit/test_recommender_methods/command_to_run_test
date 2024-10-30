@@ -1,2 +1,0 @@
-pytest tests/test_unit/test_recommender_methods/test_user_preferences_methods.py::TestGetUsersGoodDay::test_get_users_database_method
-pytest tests/test_unit/test_recommender_methods/test_user_preferences_methods.py::TestGetUsersBadDay::test_get_users_database_method_bad_day

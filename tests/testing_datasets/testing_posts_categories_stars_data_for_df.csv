@@ -1,9 +1,0 @@
-,rating_id,post_id,user_id,post_slug,ratings_values,ratings_created_at,category_title,category_slug,post_created_at,all_features_preprocessed,full_text
-110,99999999,99999999,999999,test3,3,2022-09-29 16:02:45,Test-Category,test,1999-01-01 00:00:00,test,test
-111,99999998,99999998,999999,test2,2,2022-09-29 16:02:45,Test-Category,test,1999-01-01 00:00:00,test,test
-112,99999997,99999997,999999,test,3,2022-09-29 16:02:45,Test-Category,test,1999-01-01 00:00:00,test,test
-113,99999996,99999996,999999,test4,2,2022-09-29 16:02:45,Test-Category,test,1999-01-01 00:00:00,test,test
-114,99999995,99999995,999999,test5,2,2022-09-29 16:02:45,Test-Category,test,1999-01-01 00:00:00,test,test
-62,99999994,99999994,999999,test6,3,2022-09-29 16:02:45,Test-Category,test,1999-01-01 00:00:00,test,test
-115,99999993,99999993,999999,test7,2,2022-09-29 16:02:45,Test-Category,test,1999-01-01 00:00:00,test,test
-116,99999992,99999992,999999,test8,3,2022-09-29 16:02:45,Test-Category,test,1999-01-01 00:00:00,test,test

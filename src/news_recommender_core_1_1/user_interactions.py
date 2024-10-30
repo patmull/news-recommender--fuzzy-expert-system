@@ -946,10 +946,6 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
          hybrid_fuzzy_global_metrics]) \
         .set_index('model_name')
     logging.debug(global_metrics_df)
-    recall_at_5_stacking_hybrid = global_metrics_df.loc['StackingHybridRecommender']['recall@5']
-    recall_at_10_stacking_hybrid = global_metrics_df.loc['StackingHybridRecommender']['recall@10']
-    recall_at_20_stacking_hybrid = global_metrics_df.loc['StackingHybridRecommender']['recall@20']
-
 
     inspect_interactions(tested_user_profile_id,
                          interactions_test_indexed_df,
@@ -988,34 +984,11 @@ def init_user_interaction_recommender(belief_in_model_cb=None,
     except Exception as e:
         logging.error("Exception when trying to inspect interactions. Full exception: " + str(traceback.format_exc()))
 
+    # In the case of needing to save the results, e.g.:
     recall_at_5_hybrid = global_metrics_df.loc['Hybrid']['recall@5']
     recall_at_10_hybrid = global_metrics_df.loc['Hybrid']['recall@10']
-    recall_at_20_hybrid = global_metrics_df.loc['Hybrid']['recall@20']
 
-    recall_at_5_hybrid_bayesian = global_metrics_df.loc['Bayesian Hybrid']['recall@5']
-    recall_at_10_hybrid_bayesian = global_metrics_df.loc['Bayesian Hybrid']['recall@10']
-    recall_at_20_hybrid_bayesian = global_metrics_df.loc['Bayesian Hybrid']['recall@20']
-
-    recall_at_5_hybrid_or_fuzzy_hybrid = global_metrics_df.loc['Fuzzy Hybrid']['recall@5']
-    recall_at_10_hybrid_or_fuzzy_hybrid = global_metrics_df.loc['Fuzzy Hybrid']['recall@10']
-    recall_at_20_hybrid_or_fuzzy_hybrid = global_metrics_df.loc['Fuzzy Hybrid']['recall@20']
-
-    recall_at_5_cf = global_metrics_df.loc['Collaborative Filtering']['recall@5']
-    recall_at_10_cf = global_metrics_df.loc['Collaborative Filtering']['recall@10']
-    recall_at_20_cf = global_metrics_df.loc['Collaborative Filtering']['recall@20']
-
-    recall_at_5_cb = global_metrics_df.loc['Content-Based']['recall@5']
-    recall_at_10_cb = global_metrics_df.loc['Content-Based']['recall@10']
-    recall_at_20_cb = global_metrics_df.loc['Content-Based']['recall@20']
-
-    recall_at_5_pop = global_metrics_df.loc['Popularity']['recall@5']
-    recall_at_10_pop = global_metrics_df.loc['Popularity']['recall@10']
-    recall_at_20_pop = global_metrics_df.loc['Popularity']['recall@20']
-
-    return (recall_at_5_hybrid, recall_at_10_hybrid, recall_at_5_hybrid_or_fuzzy_hybrid,
-            recall_at_10_hybrid_or_fuzzy_hybrid, recall_at_5_hybrid_bayesian, recall_at_10_hybrid_bayesian,
-            recall_at_5_cf, recall_at_10_cf, recall_at_5_cb,
-            recall_at_10_cb, recall_at_5_pop, recall_at_10_pop)
+    return recall_at_5_hybrid, recall_at_10_hybrid
 
 
 def create_cf_recommender(interactions_train_df, articles_df):

@@ -1,8 +1,0 @@
-git clone --mirror https://github.com/patmull/news-recommender-core.git
-java -jar bfg-1.14.0.jar --strip-blobs-bigger-than 100M --replace-text passwords.txt
-cd news-recommender-core.git
-git reflog expire --expire=now --all
-git gc --prune=now --aggressive
-git push
-java -jar bfg-1.14.0.jar --strip-blobs-bigger-than 100M --replace-text passwords.txt
-

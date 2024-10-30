@@ -1,2 +1,0 @@
-# news-parser
-news-parser

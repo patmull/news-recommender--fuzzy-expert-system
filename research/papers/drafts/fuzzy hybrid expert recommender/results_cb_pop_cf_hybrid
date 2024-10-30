@@ -1,7 +1,0 @@
-                         recall@5  recall@10
-model_name
-Content-Based            0.206061   0.224242
-Popularity               0.851515   0.996970
-Collaborative Filtering  0.406061   0.430303
-Hybrid                   0.445455   0.545455
-

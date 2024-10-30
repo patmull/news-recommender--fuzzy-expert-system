@@ -1,5 +1,0 @@
-### pytest
-# highlight code that is not covered
-py.test --cov-report html tests/test_data_handling/test_data_queries.py -k 'test_find_post_by_slug_bad_input' --cov=src
-py.test --cov-report html tests --cov=src
-### mypy

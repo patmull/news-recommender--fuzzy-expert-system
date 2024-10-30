@@ -7,12 +7,11 @@ import random
 
 logging.basicConfig(level=logging.INFO)
 
-
+# Examples of usage:
 # init_user_interaction_recommender(num_of_users=40, num_of_interactions=200, limit_num_of_recommendations=20)
-# CF still poor. Needs to be increased.
-# or we can show it performs better if sample size low, but CF still needs to be reasonable for better results
 # init_user_interaction_recommender(use_fuzzy_expert=True)
 # init_user_interaction_recommender(use_fuzzy_expert=False)
+# hyperparameter_tuning_fuzzy_expert_grid_search()
 
 
 def hyperparameter_tuning_fuzzy_expert_grid_search():
@@ -160,47 +159,6 @@ def hyperparameter_tuning_fuzzy_expert_random_search(num_iterations=100000000):
     logging.info("Random search completed.")
 
 
-def hyperparameter_tuning_ensemble_random_search(num_iterations=100000000):
-    beliefs_in_model_cb = range(0, 10, 1)
-    beliefs_in_model_cf = range(0, 10, 1)
-
-    path_to_results_csv = Path("evaluations/1_1/results_random_search_new.csv")
-
-    existing_rows = set()  # Set to store existing rows
-
-    # Read existing rows from the CSV file
-    try:
-        with open(path_to_results_csv.as_posix(), "r") as f:
-            next(f)  # Skip header
-            for line in f:
-                existing_rows.add(tuple(int(x) if x else 0 for x in line.strip().split(',')[:2]))
-    except FileNotFoundError:
-        # If file does not exist, it will be created when writing the first result
-        pass
-
-    for _ in range(num_iterations):
-        new_row = (
-            random.choice(beliefs_in_model_cb),
-            random.choice(beliefs_in_model_cf)
-        )
-
-        if new_row not in existing_rows:  # Check if the combination is unique
-            recall_at_5, recall_at_10 = init_user_interaction_recommender_ensemble(
-                belief_in_model_cb=new_row[0],
-                belief_in_model_cf=new_row[1]
-            )
-
-            with open(path_to_results_csv.as_posix(), "a") as f:
-                logging.info("Results for iteration with: %s", new_row)
-                logging.info("recall_at_5: {}".format(recall_at_5))
-                logging.info("recall_at_10: {}".format(recall_at_10))
-
-                f.write("%s,%s,%s,%s\n" % (new_row[0], new_row[1], recall_at_5, recall_at_10))
-
-            existing_rows.add(new_row)  # Add the new row to existing rows set
-
-    logging.info("Random search completed.")
-
-
-# hyperparameter_tuning_fuzzy_expert_grid_search()
 hyperparameter_tuning_fuzzy_expert_random_search()
+
+logging.info("Random search completed.")

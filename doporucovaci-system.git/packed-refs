@@ -1,9 +1,0 @@
-# pack-refs with: peeled fully-peeled sorted 
-4240c4383a08a77e7d7058f0d9583f67a487299d refs/heads/development-branch
-e6a6ced3aa89f9a369cb10b12a5816fb0b9cc65c refs/heads/hybrid_recommend
-94ba59fe2c250807fd334c67394969244ceba2cf refs/heads/main
-485ac1c759a1ea53aad4d74ac36dbb47df9ddef4 refs/heads/master
-65edbdc8af5b818124b7ef214845054d9f7a8c0f refs/pull/1/head
-fc20365c538407540c23ebf854fd52c762e6ca78 refs/pull/2/head
-b0ff0293e0292548d7e90facd8dbe9365274eef5 refs/pull/3/head
-4668a8d1a9c833b696db3bfc2a788d85859dcf60 refs/pull/4/head

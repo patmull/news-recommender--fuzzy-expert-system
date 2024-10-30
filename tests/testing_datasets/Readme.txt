@@ -1,2 +1,0 @@
-testing_posts_categories_data_for_df.csv dataset was created for mocking the X_validation dataframe from
-classifier.py but can be probably used also for other use cases/tests involving the posts_categories data

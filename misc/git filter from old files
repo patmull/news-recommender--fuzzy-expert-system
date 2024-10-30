@@ -1,3 +1,0 @@
-git filter-branch --index-filter 'rm -f tox.ini' -- --all
-
-git filter-branch -f --index-filter 'git rm --cached --ignore-unmatch content_based_algorithms/lda.py' -- --all HEAD

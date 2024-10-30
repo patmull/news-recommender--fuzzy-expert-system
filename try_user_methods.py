@@ -1,4 +1,0 @@
-from src.prefillers.user_based_prefillers.prefilling_user_classifier import \
-    predict_ratings_for_all_users_store_to_redis, predict_ratings_for_user_store_to_redis
-
-predict_ratings_for_all_users_store_to_redis()

@@ -1,4 +1,0 @@
-source /home/muller/Envs/venv_deploy/bin/activate
-
-python3 -m venv /home/muller/Envs/venv_parser_deploy
-source /home/muller/Envs/venv_parser_deploy/bin/activate

@@ -1,4 +1,0 @@
-
-Similarity: very_high, high, medium_high, med, low, very_low
-Freshness: very_fresh, fresh, current, slightly_old, old
-Boosting coefficient: very_high, high, med, low, very_low

@@ -1,9 +1,0 @@
-,thumb_id,post_id,user_id,post_slug,thumbs_values,category_title,category_slug,post_created_at,thumbs_created_at,all_features_preprocessed,body_preprocessed,full_text,short_text,trigrams_full_text,title,keywords,doc2vec_representation
-57,99999999,99999999,999999,test3,True,Test-Category,test,1999-01-01 00:00:00,2022-09-29 16:38:25,test,test,test,,,Test,test,
-58,99999998,99999998,999999,test2,False,Test-Category,test,1999-01-01 00:00:00,2022-09-29 16:38:25,test,test,test,,,Test,test,
-59,99999997,99999997,999999,test,False,Test-Category,test,1999-01-01 00:00:00,2022-09-29 16:38:25,test,test,test,,,Test,test,
-60,99999996,99999996,999999,test4,False,Test-Category,test,1999-01-01 00:00:00,2022-09-29 16:38:25,test,test,test,,,Test,test,
-61,99999995,99999995,999999,test5,False,Test-Category,test,1999-01-01 00:00:00,2022-09-29 16:38:25,test,test,test,,,Test,test,
-62,99999994,99999994,999999,test6,True,Test-Category,test,1999-01-01 00:00:00,2022-09-29 16:38:25,test,test,test,,,Test,test,
-63,99999993,99999993,999999,test7,True,Test-Category,test,1999-01-01 00:00:00,2022-09-29 16:38:25,test,test,test,,,Test,test,
-64,99999992,99999992,999999,test8,True,Test-Category,test,1999-01-01 00:00:00,2022-09-29 16:38:25,test,test,test,,,Test,test,

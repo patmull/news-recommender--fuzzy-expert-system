@@ -1,5 +1,0 @@
-test_user_keywords
-test_lda_full_text_method
-test_lda_method
-test_word2vec_method
-test_with_redis_call
